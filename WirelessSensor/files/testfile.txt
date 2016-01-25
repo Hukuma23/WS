@@ -1,0 +1,4 @@
+Firmware #0 (rom0.bin) -- 1 second
+Firmware #1 (rom1.bin) -- 3 seconds
+This line is the content of test file.
+
