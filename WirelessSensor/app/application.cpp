@@ -150,29 +150,33 @@ void initSerialVars() {
 	}
 }
 
+void IRAM_ATTR turnSw1(bool state) {
+
+	ActStates.setSw1(state);
+	if (ActStates.sw1) {
+		digitalWrite(AppSettings.sw1, HIGH);
+		digitalWrite(AppSettings.led1, HIGH);
+	}
+	else {
+		digitalWrite(AppSettings.sw1, LOW);
+		digitalWrite(AppSettings.led1, LOW);
+	}
+}
+
 void IRAM_ATTR interruptHandlerInSw() {
 	if ((millis() - push1Time) < AppSettings.debounce_time)
 		return;
 
 	push1Time = millis();
-	ActStates.setSw1(!ActStates.sw1);
-	ActStates.setSw1(!ActStates.sw2);
-
-	if (ActStates.sw1) {
-		digitalWrite(AppSettings.sw1, HIGH);
-		digitalWrite(AppSettings.sw2, HIGH);
-	}
-	else {
-		digitalWrite(AppSettings.sw1, LOW);
-		digitalWrite(AppSettings.sw2, LOW);
-	}
+	turnSw1(!ActStates.sw1);
 
 	DEBUG4_PRINT(push1Time);
 	DEBUG4_PRINT( "   sw1 = ");
 	DEBUG4_PRINT(ActStates.sw1);
 	DEBUG4_PRINTLN();
-
 }
+
+
 
 void var_init() {
 	DEBUG4_PRINTLN("_var_init");
@@ -308,12 +312,10 @@ void onMessageReceived(String topic, String message) {
 
 	if (topic.equals(topSw1_In)) {
 		if (message.equals("ON")) {
-			ActStates.setSw1(HIGH);
-			digitalWrite(AppSettings.sw1, ActStates.sw1);
+			turnSw1(HIGH);
 			//digitalWrite(AppSettings.sw1, swState1);
 		} else if (message.equals("OFF")) {
-			ActStates.setSw1(LOW);
-			digitalWrite(AppSettings.sw1, ActStates.sw1);
+			turnSw1(LOW);
 			//digitalWrite(AppSettings.sw1, swState1);
 		} else
 			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
@@ -900,7 +902,7 @@ void processSerialMessage() {
     DEBUG4_PRINT(" id=");
     DEBUG4_PRINTLN(objId);
 	 */
-
+	/*
 	if (objType == ObjectType::SWITCH) {
 		if ((objId == ObjectId::SWITCH_1) || (objId == ObjectId::ALL)) {
 			if (cmd == SerialCommand::SET_LOW) {
@@ -910,6 +912,7 @@ void processSerialMessage() {
 			}
 		}
 	}
+	*/
 
 	if (cmd == SerialCommand::RETURN) {
 		SerialMessage pl = protocol.getPayload();
@@ -1810,7 +1813,7 @@ void init() {
 		pinMode(AppSettings.sw1, OUTPUT);
 		pinMode(AppSettings.sw2, OUTPUT);
 
-		digitalWrite(AppSettings.sw1, ActStates.sw1);
+		turnSw1(ActStates.sw1);
 		digitalWrite(AppSettings.sw2, ActStates.sw2);
 
 
