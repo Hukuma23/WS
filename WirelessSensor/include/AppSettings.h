@@ -48,6 +48,7 @@ struct ApplicationSettingsStorage
 	byte ds;
 	byte sw1;
 	byte sw2;
+	byte in1;
 
 	// MODULES
 	bool is_wifi = false;
@@ -55,6 +56,7 @@ struct ApplicationSettingsStorage
 	bool is_bmp = false;
 	bool is_ds = false;
 	bool is_serial = false;
+	bool is_insw = false;
 
 	// TIMERS
 	unsigned long shift_mqtt = 10000;
@@ -73,6 +75,7 @@ struct ApplicationSettingsStorage
 	unsigned long interval_listener = 200;
 	unsigned long interval_collector = 30000;
 	unsigned long interval_receiver = 30000;
+	unsigned long debounce_time = 1000;
 
 
 	ApplicationSettingsStorage() {
@@ -253,6 +256,7 @@ struct ApplicationSettingsStorage
 			ds = pins["ds"];
 			sw1 = pins["sw1"];
 			sw2 = pins["sw2"];
+			in1 = pins["in1"];
 
 			JsonObject& modules = config["modules"];
 			is_dht = modules["is_dht"];
@@ -260,6 +264,7 @@ struct ApplicationSettingsStorage
 			is_ds = modules["is_ds"];
 			is_wifi = modules["is_wifi"];
 			is_serial = modules["is_serial"];
+			is_insw = modules["is_insw"];
 
 			JsonObject& timers = config["timers"];
 			shift_mqtt = timers["shift_mqtt"];
@@ -278,6 +283,7 @@ struct ApplicationSettingsStorage
 			interval_listener = timers["interval_listener"];
 			interval_collector = timers["interval_collector"];
 			interval_receiver = timers["interval_receiver"];
+			debounce_time = timers["debounce_time"];
 
 			delete[] jsonString;
 		}
@@ -400,6 +406,7 @@ struct ApplicationSettingsStorage
 			pins["ds"] = ds;
 			pins["sw1"] = sw1;
 			pins["sw2"] = sw2;
+			pins["in1"] = in1;
 
 			JsonObject& modules = config["modules"];
 			modules["is_dht"] = is_dht;
@@ -407,6 +414,7 @@ struct ApplicationSettingsStorage
 			modules["is_ds"] = is_ds;
 			modules["is_wifi"] = is_wifi;
 			modules["is_serial"] = is_serial;
+			modules["is_insw"] = is_insw;
 
 			JsonObject& timers = config["timers"];
 			timers["shift_mqtt"] = shift_mqtt;
@@ -425,6 +433,7 @@ struct ApplicationSettingsStorage
 			timers["interval_listener"] = interval_listener;
 			timers["interval_collector"] = interval_collector;
 			timers["interval_receiver"] = interval_receiver;
+			timers["debounce_time"] = debounce_time;
 
 			fileSetContent(APP_SETTINGS_FILE, root.toJsonString());
 			DEBUG4_PRINTLN(root.toJsonString());
@@ -490,6 +499,7 @@ struct ApplicationSettingsStorage
 		pins["ds"] = ds;
 		pins["sw1"] = sw1;
 		pins["sw2"] = sw2;
+		pins["in1"] = in1;
 
 		JsonObject& modules = jsonBuffer.createObject();
 		modules["is_dht"] = is_dht;
@@ -497,6 +507,7 @@ struct ApplicationSettingsStorage
 		modules["is_ds"] = is_ds;
 		modules["is_wifi"] = is_wifi;
 		modules["is_serial"] = is_serial;
+		modules["is_insw"] = is_insw;
 
 		JsonObject& timers = jsonBuffer.createObject();
 		timers["shift_mqtt"] = shift_mqtt;
@@ -515,6 +526,7 @@ struct ApplicationSettingsStorage
 		timers["interval_listener"] = interval_listener;
 		timers["interval_collector"] = interval_collector;
 		timers["interval_receiver"] = interval_receiver;
+		timers["debounce_time"] = debounce_time;
 
 		config["networks"] = networks;
 		config["modules"] = modules;
@@ -662,6 +674,10 @@ struct ApplicationSettingsStorage
 					this->sw2 = pins["sw2"];
 					result += "sw2, ";
 				}
+				if (pins.containsKey("in1")) {
+					this->in1 = pins["in1"];
+					result += "in1, ";
+				}
 			}
 
 			if (config.containsKey("modules")) {
@@ -685,6 +701,10 @@ struct ApplicationSettingsStorage
 				if (modules.containsKey("is_serial")) {
 					this->is_serial = modules["is_serial"];
 					result += "is_serial, ";
+				}
+				if (modules.containsKey("is_insw")) {
+					this->is_insw = modules["is_insw"];
+					result += "is_insw, ";
 				}
 			}
 
@@ -750,6 +770,10 @@ struct ApplicationSettingsStorage
 				if (timers.containsKey("interval_receiver")) {
 					this->interval_receiver = timers["interval_receiver"];
 					result += "interval_receiver, ";
+				}
+				if (timers.containsKey("debounce_time")) {
+					this->debounce_time = timers["debounce_time"];
+					result += "debounce_time, ";
 				}
 			}
 
