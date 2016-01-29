@@ -81,6 +81,8 @@ float sBMPTemp, sBMPPress;
 int16_t sWaterCold, sWaterHot;
 byte swState[3];
 
+// INSW
+unsigned long push1Time = 0;
 
 
 // MQTT client
@@ -146,6 +148,30 @@ void initSerialVars() {
 	for (int i=0; i < sizeof swState; i++) {
 		swState[i] = UNDEF;
 	}
+}
+
+void IRAM_ATTR interruptHandlerInSw() {
+	if ((millis() - push1Time) < AppSettings.debounce_time)
+		return;
+
+	push1Time = millis();
+	ActStates.setSw1(!ActStates.sw1);
+	ActStates.setSw1(!ActStates.sw2);
+
+	if (ActStates.sw1) {
+		digitalWrite(AppSettings.sw1, HIGH);
+		digitalWrite(AppSettings.sw2, HIGH);
+	}
+	else {
+		digitalWrite(AppSettings.sw1, LOW);
+		digitalWrite(AppSettings.sw2, LOW);
+	}
+
+	DEBUG4_PRINT(push1Time);
+	DEBUG4_PRINT( "   sw1 = ");
+	DEBUG4_PRINT(ActStates.sw1);
+	DEBUG4_PRINTLN();
+
 }
 
 void var_init() {
@@ -1763,20 +1789,30 @@ void init() {
 			System.onReady(ready);
 		}
 
-		dht.begin();
-		ds.begin(); // It's required for one-wire initialization!
+		if (AppSettings.is_dht)
+			dht.begin();
 
-		// I2C init
+		if (AppSettings.is_ds)
+			ds.begin(); // It's required for one-wire initialization!
 
-		//Wire.pins(SCL_PIN, SDA_PIN);
-		Wire.pins(AppSettings.scl, AppSettings.sda);
-		Wire.begin();
+		if (AppSettings.is_bmp) { // I2C init
+			//Wire.pins(SCL_PIN, SDA_PIN);
+			Wire.pins(AppSettings.scl, AppSettings.sda);
+			Wire.begin();
+		}
+
+		if (AppSettings.is_insw) {
+			pinMode(AppSettings.in1, INPUT);
+			attachInterrupt(AppSettings.in1, interruptHandlerInSw, RISING);
+		}
+
 
 		pinMode(AppSettings.sw1, OUTPUT);
 		pinMode(AppSettings.sw2, OUTPUT);
 
 		digitalWrite(AppSettings.sw1, ActStates.sw1);
 		digitalWrite(AppSettings.sw2, ActStates.sw2);
+
 
 		//DEBUG1_PRINTLN("Program started");
 
