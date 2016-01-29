@@ -49,6 +49,7 @@ struct ApplicationSettingsStorage
 	byte sw1;
 	byte sw2;
 	byte in1;
+	byte led1;
 
 	// MODULES
 	bool is_wifi = false;
@@ -257,6 +258,7 @@ struct ApplicationSettingsStorage
 			sw1 = pins["sw1"];
 			sw2 = pins["sw2"];
 			in1 = pins["in1"];
+			led1 = pins["led1"];
 
 			JsonObject& modules = config["modules"];
 			is_dht = modules["is_dht"];
@@ -407,6 +409,7 @@ struct ApplicationSettingsStorage
 			pins["sw1"] = sw1;
 			pins["sw2"] = sw2;
 			pins["in1"] = in1;
+			pins["led1"] = led1;
 
 			JsonObject& modules = config["modules"];
 			modules["is_dht"] = is_dht;
@@ -500,6 +503,7 @@ struct ApplicationSettingsStorage
 		pins["sw1"] = sw1;
 		pins["sw2"] = sw2;
 		pins["in1"] = in1;
+		pins["led1"] = led1;
 
 		JsonObject& modules = jsonBuffer.createObject();
 		modules["is_dht"] = is_dht;
@@ -677,6 +681,10 @@ struct ApplicationSettingsStorage
 				if (pins.containsKey("in1")) {
 					this->in1 = pins["in1"];
 					result += "in1, ";
+				}
+				if (pins.containsKey("led1")) {
+					this->led1 = pins["led1"];
+					result += "led1, ";
 				}
 			}
 
