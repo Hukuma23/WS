@@ -8,6 +8,7 @@
 #include <AppSettings.h>
 #include <ActStates.h>
 #include <Logger.h>
+#include <LED.h>
 
 FTPServer ftp;
 
@@ -155,11 +156,11 @@ void IRAM_ATTR turnSw1(bool state) {
 	ActStates.setSw1(state);
 	if (ActStates.sw1) {
 		digitalWrite(AppSettings.sw1, HIGH);
-		digitalWrite(AppSettings.led1, HIGH);
+		ledGreen(AppSettings.led1);
 	}
 	else {
 		digitalWrite(AppSettings.sw1, LOW);
-		digitalWrite(AppSettings.led1, LOW);
+		ledBlue(AppSettings.led1);
 	}
 }
 
