@@ -15,12 +15,6 @@
 #define BRIGHT	0x10
 
 
-#define RED 	"\x20\x00\x00"
-#define GREEN 	"\x00\x20\x00"
-#define BLUE 	"\x00\x00\x20"
-#define BLACK 	"\x00\x00\x00"
-#define WHITE 	"\x20\x20\x20"
-
 void static ledRed(byte pin, byte bright = BRIGHT) {
 	char color[3] = {bright,0,0};
 	ws2812_writergb(pin, color, sizeof(color));
