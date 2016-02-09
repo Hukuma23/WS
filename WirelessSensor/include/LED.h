@@ -11,32 +11,31 @@
 #ifndef INCLUDE_LED_H_
 #define INCLUDE_LED_H_
 
+class LED {
 
-#define BRIGHT	0x10
+private:
+	byte bright;
+	byte pin;
+
+public:
+	LED();
+	LED(byte pin, byte bright);
+
+	void setPin(byte pin);
+	void setBright(byte bright);
+
+	byte getPin();
+	byte getBright();
 
 
-void static ledRed(byte pin, byte bright = BRIGHT) {
-	char color[3] = {bright,0,0};
-	ws2812_writergb(pin, color, sizeof(color));
-}
+	void red();
+	void green();
+	void blue();
+	void black();
+	void white();
 
-void static ledGreen(byte pin, byte bright = BRIGHT) {
-	char color[3] = {0,bright,0};
-	ws2812_writergb(pin, color, sizeof(color));
-}
-void static ledBlue(byte pin, byte bright = BRIGHT) {
-	char color[3] = {0,0,bright};
-	ws2812_writergb(pin, color, sizeof(color));
-}
 
-void static ledBlack(byte pin) {
-	char color[3] = {0,0,0};
-	ws2812_writergb(pin, color, sizeof(color));
-}
+	void rgb (byte red, byte green, byte blue);
 
-void static ledWhite(byte pin, byte bright = BRIGHT) {
-	char color[3] = {bright,bright,bright};
-	ws2812_writergb(pin, color, sizeof(color));
-}
-
+};
 #endif /* INCLUDE_LED_H_ */

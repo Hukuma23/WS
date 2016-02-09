@@ -156,11 +156,11 @@ void IRAM_ATTR turnSw1(bool state) {
 	ActStates.setSw1(state);
 	if (ActStates.sw1) {
 		digitalWrite(AppSettings.sw1, HIGH);
-		ledGreen(AppSettings.led1);
+		AppSettings.led1.green();
 	}
 	else {
 		digitalWrite(AppSettings.sw1, LOW);
-		ledBlue(AppSettings.led1);
+		AppSettings.led1.red();
 	}
 }
 
