@@ -83,7 +83,7 @@ int16_t sWaterCold, sWaterHot;
 byte swState[3];
 
 // INSW
-unsigned long push1Time = 0;
+unsigned long pushTime[10] = {0,0,0,0,0,0,0,0,0,0};
 
 
 // MQTT client
@@ -96,7 +96,7 @@ String topSw2_In;
 String topCfg_In;
 String topCfg_Out;
 
-String topSw1_Out;
+String topSw_Out;
 String topSw2_Out;
 
 String topTemp1_Out;
@@ -118,11 +118,8 @@ String sTopSw3_In;
 String sTopSw4_In;
 String sTopSw5_In;
 
-String sTopSw1_Out;
-String sTopSw2_Out;
-String sTopSw3_Out;
-String sTopSw4_Out;
-String sTopSw5_Out;
+String sTopSw_Out;
+
 
 String topWaterCold_Out;
 String topWaterHot_Out;
@@ -151,33 +148,61 @@ void initSerialVars() {
 	}
 }
 
-void IRAM_ATTR turnSw1(bool state) {
+void IRAM_ATTR turnSw(byte num, bool state) {
 
-	ActStates.setSw1(state);
-	if (ActStates.sw1) {
-		digitalWrite(AppSettings.sw1, HIGH);
-		AppSettings.led1.green();
+	ActStates.setSw(num, state);
+	if (ActStates.getSw(num)) {
+		digitalWrite(AppSettings.sw[num], HIGH);
+		AppSettings.led.green(num);
 	}
 	else {
-		digitalWrite(AppSettings.sw1, LOW);
-		AppSettings.led1.red();
+		digitalWrite(AppSettings.sw[num], LOW);
+		AppSettings.led.red(num);
 	}
 }
 
-void IRAM_ATTR interruptHandlerInSw() {
-	if ((millis() - push1Time) < AppSettings.debounce_time)
+void IRAM_ATTR turnSsw(byte num, bool state) {
+	if (state == HIGH) {
+		ActStates.setSsw(num, HIGH);
+		protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, num+1);
+	} else {
+		ActStates.setSsw(num, LOW);
+		protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, num+1);
+	}
+}
+
+void IRAM_ATTR interruptHandlerInSw(byte num) {
+	if ((millis() - pushTime[num]) < AppSettings.debounce_time)
 		return;
 
-	push1Time = millis();
-	turnSw1(!ActStates.sw1);
+	pushTime[num] = millis();
+	turnSw(num, !ActStates.sw[num]);
 
-	DEBUG4_PRINT(push1Time);
-	DEBUG4_PRINT( "   sw1 = ");
-	DEBUG4_PRINT(ActStates.sw1);
+	DEBUG4_PRINT(pushTime[num]);
+	DEBUG4_PRINTF( "   sw%d = ", num);
+	DEBUG4_PRINT(ActStates.sw[num]);
 	DEBUG4_PRINTLN();
 }
 
+void IRAM_ATTR interruptHandlerInSw1() {
+	interruptHandlerInSw(0);
+}
 
+void IRAM_ATTR interruptHandlerInSw2() {
+	interruptHandlerInSw(1);
+}
+
+void IRAM_ATTR interruptHandlerInSw3() {
+	interruptHandlerInSw(2);
+}
+
+void IRAM_ATTR interruptHandlerInSw4() {
+	interruptHandlerInSw(3);
+}
+
+void IRAM_ATTR interruptHandlerInSw5() {
+	interruptHandlerInSw(4);
+}
 
 void var_init() {
 	DEBUG4_PRINTLN("_var_init");
@@ -188,8 +213,8 @@ void var_init() {
 	topSw1_In = topicMain + "/in/" + topicClient + "sw1";
 	topSw2_In = topicMain + "/in/" + topicClient + "sw2";
 
-	topSw1_Out = topicMain + "/out/" + topicClient + "sw1";
-	topSw2_Out = topicMain + "/out/" + topicClient + "sw2";
+	topSw_Out = topicMain + "/out/" + topicClient + "sw";
+	//topSw2_Out = topicMain + "/out/" + topicClient + "sw2";
 
 	// * Serial start *
 	sTopSw1_In = topicMain + "/in/" + topicClient + "ssw1";
@@ -198,11 +223,7 @@ void var_init() {
 	sTopSw4_In = topicMain + "/in/" + topicClient + "ssw4";
 	sTopSw5_In = topicMain + "/in/" + topicClient + "ssw5";
 
-	sTopSw1_Out = topicMain + "/out/" + topicClient + "ssw1";
-	sTopSw2_Out = topicMain + "/out/" + topicClient + "ssw2";
-	sTopSw3_Out = topicMain + "/out/" + topicClient + "ssw3";
-	sTopSw4_Out = topicMain + "/out/" + topicClient + "ssw4";
-	sTopSw5_Out = topicMain + "/out/" + topicClient + "ssw5";
+	sTopSw_Out = topicMain + "/out/" + topicClient + "ssw";
 	// * Serial end *
 
 	topTemp1_Out = topicMain + "/out/" + topicClient + "Temperature";
@@ -313,77 +334,61 @@ void onMessageReceived(String topic, String message) {
 
 	if (topic.equals(topSw1_In)) {
 		if (message.equals("ON")) {
-			turnSw1(HIGH);
-			//digitalWrite(AppSettings.sw1, swState1);
+			turnSw(0, HIGH);
 		} else if (message.equals("OFF")) {
-			turnSw1(LOW);
-			//digitalWrite(AppSettings.sw1, swState1);
+			turnSw(0, LOW);
 		} else
 			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
 	} else if (topic.equals(topSw2_In)) {
 		if (message.equals("ON")) {
-			ActStates.setSw2(HIGH);
-			//digitalWrite(AppSettings.sw2, swState2);
-			digitalWrite(AppSettings.sw2, ActStates.sw2);
+			turnSw(1, HIGH);
 		} else if (message.equals("OFF")) {
-			ActStates.setSw2(LOW);
-			//digitalWrite(AppSettings.sw2, swState2);
-			digitalWrite(AppSettings.sw2, ActStates.sw2);
+			turnSw(1, LOW);
 		} else
 			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
 	}
-// *** Serial block ***
+	// *** Serial block ***
 	else if (topic.equals(sTopSw1_In)) {
 		if (message.equals("ON")) {
-			ActStates.setSsw1(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_1);
+			turnSsw(0, HIGH);
 		} else if (message.equals("OFF")) {
-			ActStates.setSsw1(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_1);
+			turnSsw(0, LOW);
 		} else
 			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
 	}
 	else if (topic.equals(sTopSw2_In)) {
 		if (message.equals("ON")) {
-			ActStates.setSsw2(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_2);
+			turnSsw(1, HIGH);
 		} else if (message.equals("OFF")) {
-			ActStates.setSsw2(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_2);
+			turnSsw(1, LOW);
 		} else
 			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
 	}
 	else if (topic.equals(sTopSw3_In)) {
 		if (message.equals("ON")) {
-			ActStates.setSsw3(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_3);
+			turnSsw(2, HIGH);
 		} else if (message.equals("OFF")) {
-			ActStates.setSsw3(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_3);
+			turnSsw(2, LOW);
 		} else
 			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
 	}
 	else if (topic.equals(sTopSw4_In)) {
 		if (message.equals("ON")) {
-			ActStates.setSsw4(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_4);
+			turnSsw(3, HIGH);
 		} else if (message.equals("OFF")) {
-			ActStates.setSsw4(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_4);
+			turnSsw(3, LOW);
 		} else
 			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
 	}
 	else if (topic.equals(sTopSw5_In)) {
 		if (message.equals("ON")) {
-			ActStates.setSsw5(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_5);
+			turnSsw(4, HIGH);
 		} else if (message.equals("OFF")) {
-			ActStates.setSsw5(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_5);
+			turnSsw(4, LOW);
 		} else
 			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
 	}
-// *** Serial block end ***
+	// *** Serial block end ***
 	else if (topic.equals(topCfg_In)) {
 
 		int msgLen = message.length() + 1;
@@ -504,7 +509,7 @@ void onMessageReceived(String topic, String message) {
 			DEBUG4_PRINTLN(strHelp);
 			mqtt.publish(topCfg_Out, strHelp);
 		}
-		*/
+		 */
 		else
 			DEBUG4_PRINTLN("Topic matched, command is UNKNOWN");
 	}
@@ -543,41 +548,17 @@ void startMqttClient() {
 
 void publishSerialSw() {
 
-	if (ActStates.ssw1)
-		mqtt.publish(sTopSw1_Out, "ON");
-	else
-		mqtt.publish(sTopSw1_Out, "OFF");
+	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+		if (ActStates.ssw[i])
+			mqtt.publish(sTopSw_Out+String(i), "ON");
+		else
+			mqtt.publish(sTopSw_Out+String(i), "OFF");
+	}
 
-	if (ActStates.ssw2)
-		mqtt.publish(sTopSw2_Out, "ON");
-	else
-		mqtt.publish(sTopSw2_Out, "OFF");
-
-	if (ActStates.ssw3)
-		mqtt.publish(sTopSw3_Out, "ON");
-	else
-		mqtt.publish(sTopSw3_Out, "OFF");
-
-	if (ActStates.ssw4)
-		mqtt.publish(sTopSw4_Out, "ON");
-	else
-		mqtt.publish(sTopSw4_Out, "OFF");
-
-	if (ActStates.ssw5)
-		mqtt.publish(sTopSw5_Out, "ON");
-	else
-		mqtt.publish(sTopSw5_Out, "OFF");
-
-	DEBUG4_PRINT("swState1 is ");
-	DEBUG4_PRINTLN(ActStates.ssw1);
-	DEBUG4_PRINT("swState2 is ");
-	DEBUG4_PRINTLN(ActStates.ssw2);
-	DEBUG4_PRINT("swState3 is ");
-	DEBUG4_PRINTLN(ActStates.ssw3);
-	DEBUG4_PRINT("swState4 is ");
-	DEBUG4_PRINTLN(ActStates.ssw4);
-	DEBUG4_PRINT("swState5 is ");
-	DEBUG4_PRINTLN(ActStates.ssw5);
+	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+		DEBUG4_PRINTF("swState%d is ", i);
+		DEBUG4_PRINTLN(ActStates.ssw[i]);
+	}
 }
 
 void publishSerial() {
@@ -862,8 +843,19 @@ void readSwitches(SerialMessage payload) {
 	bool state;
 	uint8_t sw = payload.sw;
 
+
+	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+		state = ((sw & (int)powf(2, i)) == 1)?HIGH:LOW;
+
+		DEBUG1_PRINTF("CHECK: readSwitches %d, state = ", i);
+		DEBUG1_PRINTLN(state);
+
+		if (state != ActStates.getSsw(i))
+			ActStates.setSsw(i, state);
+	}
+	/* !!! Требует тщательной проверки !!!
 	state =  ((sw & 1) == 1)?HIGH:LOW;
-	if (state != ActStates.ssw1)
+	if (state != ActStates.getSsw().ssw1)
 		ActStates.setSsw1(state);
 
 	state = (((sw & 2)  >> 1) == 1)?HIGH:LOW;
@@ -881,7 +873,7 @@ void readSwitches(SerialMessage payload) {
 	state = (((sw & 16) >> 4) == 1)?HIGH:LOW;
 	if (state != ActStates.ssw5)
 		ActStates.setSsw5(state);
-
+	 */
 }
 
 void processSerialMessage() {
@@ -913,7 +905,7 @@ void processSerialMessage() {
 			}
 		}
 	}
-	*/
+	 */
 
 	if (cmd == SerialCommand::RETURN) {
 		SerialMessage pl = protocol.getPayload();
@@ -1210,20 +1202,19 @@ void readDHT(void) {
 
 void publishSwitches() {
 
-	if (ActStates.sw1)
-		mqtt.publish(topSw1_Out, "ON");
-	else
-		mqtt.publish(topSw1_Out, "OFF");
+	for (byte i = 0; i < ActStates.sw_cnt; i++) {
+		if (ActStates.getSw(i))
+			mqtt.publish(topSw_Out + String(i), "ON");
+		else
+			mqtt.publish(topSw_Out + String(i), "OFF");
+	}
 
-	if (ActStates.sw2)
-		mqtt.publish(topSw2_Out, "ON");
-	else
-		mqtt.publish(topSw2_Out, "OFF");
 
-	DEBUG4_PRINT("swState1 is ");
-	DEBUG4_PRINTLN(ActStates.sw1);
-	DEBUG4_PRINT("swState2 is ");
-	DEBUG4_PRINTLN(ActStates.sw2);
+	for (byte i = 0; i < ActStates.sw_cnt; i++) {
+		DEBUG4_PRINTF("swState%d is ",i);
+		DEBUG4_PRINTLN(ActStates.getSw(i));
+	}
+
 
 }
 
@@ -1793,6 +1784,8 @@ void init() {
 			System.onReady(ready);
 		}
 
+		ActStates.setSwCount(AppSettings.sw_cnt);
+
 		if (AppSettings.is_dht)
 			dht.begin();
 
@@ -1806,16 +1799,31 @@ void init() {
 		}
 
 		if (AppSettings.is_insw) {
-			pinMode(AppSettings.in1, INPUT);
-			attachInterrupt(AppSettings.in1, interruptHandlerInSw, RISING);
+			byte in_cnt = AppSettings.in_cnt;
+			for (byte i = 0; i < in_cnt; i++) {
+				pinMode(AppSettings.in[i], INPUT);
+			}
+
+
+			if (in_cnt >= 1)
+				attachInterrupt(AppSettings.in[0], interruptHandlerInSw1, RISING);
+			if (in_cnt >= 2)
+				attachInterrupt(AppSettings.in[1], interruptHandlerInSw2, RISING);
+			if (in_cnt >= 3)
+				attachInterrupt(AppSettings.in[2], interruptHandlerInSw3, RISING);
+			if (in_cnt >= 4)
+				attachInterrupt(AppSettings.in[3], interruptHandlerInSw4, RISING);
+			if (in_cnt >= 5)
+				attachInterrupt(AppSettings.in[4], interruptHandlerInSw5, RISING);
+
+		}
+
+		for (byte i = 0; i < AppSettings.sw_cnt; i++) {
+			pinMode(AppSettings.sw[i], OUTPUT);
+			turnSw(i, ActStates.sw[i]);
 		}
 
 
-		pinMode(AppSettings.sw1, OUTPUT);
-		pinMode(AppSettings.sw2, OUTPUT);
-
-		turnSw1(ActStates.sw1);
-		digitalWrite(AppSettings.sw2, ActStates.sw2);
 
 
 		//DEBUG1_PRINTLN("Program started");
