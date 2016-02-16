@@ -178,6 +178,9 @@ void IRAM_ATTR interruptHandlerInSw(byte num) {
 	pushTime[num] = millis();
 	turnSw(num, !ActStates.sw[num]);
 
+	String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] nowState = " + String(ActStates.sw[num]);
+	mqtt.publish(topCfg_Out, logStr.c_str());
+
 	DEBUG4_PRINT(pushTime[num]);
 	DEBUG4_PRINTF( "   sw%d = ", num);
 	DEBUG4_PRINT(ActStates.sw[num]);
