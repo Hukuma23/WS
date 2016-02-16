@@ -47,10 +47,15 @@ struct ApplicationSettingsStorage
 	byte scl;
 	byte dht;
 	byte ds;
-	byte sw1;
-	byte sw2;
-	byte in1;
-	LED led1;
+	//byte sw1;
+	//byte sw2;
+
+	byte* sw;
+	byte sw_cnt;
+
+	byte* in;
+	byte in_cnt;
+	LED led;
 
 	// MODULES
 	bool is_wifi = false;
@@ -258,10 +263,32 @@ struct ApplicationSettingsStorage
 			scl = pins["scl"];
 			dht = pins["dht"];
 			ds = pins["ds"];
-			sw1 = pins["sw1"];
-			sw2 = pins["sw2"];
-			in1 = pins["in1"];
-			led1.setPin((byte)pins["led1"]);
+
+			if (pins.containsKey("sw")) {
+				JsonObject& jSw = pins["sw"];
+				this->sw_cnt = (byte)jSw["cnt"];
+				sw = new byte(sw_cnt);
+				for (byte i = 0; i < sw_cnt; i++ ) {
+					if (jSw.containsKey(String(i).c_str()))
+						this->sw[i] = jSw[String(i)];
+				}
+			}
+
+			if (pins.containsKey("led")) {
+				JsonObject& jLed = pins["led"];
+				this->led.setCount((byte)jLed["cnt"]);
+				this->led.setPin((byte)jLed["pin"]);
+			}
+
+			if (pins.containsKey("in")) {
+				JsonObject& jIn = pins["in"];
+				this->in_cnt = (byte)jIn["cnt"];
+				in = new byte(in_cnt);
+				for (byte i = 0; i < in_cnt; i++ ) {
+					if (jIn.containsKey(String(i).c_str()))
+						this->in[i] = jIn[String(i)];
+				}
+			}
 
 			JsonObject& modules = config["modules"];
 			is_dht = modules["is_dht"];
@@ -409,10 +436,20 @@ struct ApplicationSettingsStorage
 			pins["scl"] = scl;
 			pins["dht"] = dht;
 			pins["ds"] = ds;
-			pins["sw1"] = sw1;
-			pins["sw2"] = sw2;
-			pins["in1"] = in1;
-			pins["led1"] = led1.getPin();
+
+			JsonObject& jSw = pins["sw"];
+			jSw["cnt"] = this->sw_cnt;
+			for (byte i = 0; i < sw_cnt; i++)
+				jSw[String(i)] = sw[i];
+
+			JsonObject& jIn = pins["in"];
+			jIn["cnt"] = this->in_cnt;
+			for (byte i = 0; i < in_cnt; i++)
+				jIn[String(i)] = in[i];
+
+			JsonObject& jLed = pins["led"];
+			jLed["cnt"] = this->led.getCount();
+			jLed["pin"] = this->led.getPin();
 
 			JsonObject& modules = config["modules"];
 			modules["is_dht"] = is_dht;
@@ -503,10 +540,24 @@ struct ApplicationSettingsStorage
 		pins["scl"] = scl;
 		pins["dht"] = dht;
 		pins["ds"] = ds;
-		pins["sw1"] = sw1;
-		pins["sw2"] = sw2;
-		pins["in1"] = in1;
-		pins["led1"] = led1.getPin();
+
+		JsonObject& jSw = jsonBuffer.createObject();
+		jSw["cnt"] = this->sw_cnt;
+		for (byte i = 0; i < sw_cnt; i++)
+			jSw[String(i)] = sw[i];
+
+		JsonObject& jIn = jsonBuffer.createObject();
+		jIn["cnt"] = this->in_cnt;
+		for (byte i = 0; i < in_cnt; i++)
+			jIn[String(i)] = in[i];
+
+		JsonObject& jLed = jsonBuffer.createObject();
+		jLed["cnt"] = this->led.getCount();
+		jLed["pin"] = this->led.getPin();
+
+		pins["sw"] = jSw;
+		pins["led"] = jLed;
+		pins["in"] = jIn;
 
 		JsonObject& modules = jsonBuffer.createObject();
 		modules["is_dht"] = is_dht;
@@ -673,21 +724,29 @@ struct ApplicationSettingsStorage
 					this->ds = pins["ds"];
 					result += "ds, ";
 				}
-				if (pins.containsKey("sw1")) {
-					this->sw1 = pins["sw1"];
-					result += "sw1, ";
+				if (pins.containsKey("sw")) {
+					JsonObject& jSw = pins["sw"];
+					this->sw_cnt = jSw["cnt"];
+					for (byte i = 0; i < sw_cnt; i++) {
+						if (jSw.containsKey(String(i).c_str()))
+							sw[i] = jSw[String(i)];
+					}
+					result += "sw, ";
 				}
-				if (pins.containsKey("sw2")) {
-					this->sw2 = pins["sw2"];
-					result += "sw2, ";
+				if (pins.containsKey("in")) {
+					JsonObject& jIn = pins["in"];
+					this->in_cnt = jIn["cnt"];
+					for (byte i = 0; i < in_cnt; i++) {
+						if (jIn.containsKey(String(i).c_str()))
+							in[i] = jIn[String(i)];
+					}
+					result += "in, ";
 				}
-				if (pins.containsKey("in1")) {
-					this->in1 = pins["in1"];
-					result += "in1, ";
-				}
-				if (pins.containsKey("led1")) {
-					this->led1.setPin((byte)pins["led1"]);
-					result += "led1, ";
+				if (pins.containsKey("led")) {
+					JsonObject& jLed = pins["led"];
+					this->led.setCount((byte)jLed["cnt"]);
+					this->led.setPin((byte)jLed["pin"]);
+					result += "led, ";
 				}
 			}
 
