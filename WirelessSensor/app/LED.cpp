@@ -7,14 +7,35 @@
 
 #include <LED.h>
 
-#define BRIGHT	0x10
+
+LED::~LED() {
+	delete led;
+}
+
+LED::LED() : pin(0), bright(BRIGHT), cnt(1) {
+	led = new char[cnt*3];
+}
+
+LED::LED(byte _pin, byte _cnt, byte _bright) : pin(_pin), cnt(_cnt), bright(_bright)  {
+	led = new char[cnt*3];
+}
+
+LED::LED(byte _cnt) : pin(0), cnt(_cnt), bright(BRIGHT)  {
+	led = new char[cnt*3];
+}
 
 
-LED::LED() : pin(0), bright(BRIGHT) {}
 
-LED::LED(byte pin, byte bright) {
-	this->pin = pin;
-	this->bright = bright;
+void LED::setCount(byte cnt) {
+	if ((this->cnt != cnt)  && (cnt > 0)){
+		delete led;
+		this->cnt = cnt;
+		led = new char[cnt*3];
+	}
+}
+
+byte LED::getCount() {
+	return cnt;
 }
 
 void LED::setPin(byte pin) {
@@ -31,33 +52,50 @@ byte LED::getBright() {
 	return bright;
 }
 
-void LED::red() {
+void LED::setColor(byte num, char* color) {
+	byte nn = num * 3;
+	for (byte i=0; i < 3; i++) {
+		led[nn+i] = color[i];
+	}
+}
+
+void LED::show() {
+	ws2812_writergb(pin, led, sizeof(led));
+}
+
+void LED::red(byte num) {
 	char color[3] = {bright,0,0};
-	ws2812_writergb(pin, color, sizeof(color));
+	setColor(num, color);
+	show();
 }
 
-void LED::green() {
+void LED::green(byte num) {
 	char color[3] = {0,bright,0};
-	ws2812_writergb(pin, color, sizeof(color));
+	setColor(num, color);
+	show();
 }
-void LED::blue() {
+void LED::blue(byte num) {
 	char color[3] = {0,0,bright};
-	ws2812_writergb(pin, color, sizeof(color));
+	setColor(num, color);
+	show();
 }
 
-void LED::black() {
+void LED::black(byte num) {
 	char color[3] = {0,0,0};
-	ws2812_writergb(pin, color, sizeof(color));
+	setColor(num, color);
+	show();
 }
 
-void LED::white() {
+void LED::white(byte num) {
 	char color[3] = {bright,bright,bright};
-	ws2812_writergb(pin, color, sizeof(color));
+	setColor(num, color);
+	show();
 }
 
-void LED::rgb (byte red, byte green, byte blue) {
+void LED::rgb (byte num, byte red, byte green, byte blue) {
 	char color[3] = {red,green,blue};
-	ws2812_writergb(pin, color, sizeof(color));
+	setColor(num, color);
+	show();
 }
 
 
