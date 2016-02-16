@@ -22,16 +22,18 @@
 //#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
 #define ACT_STATE_FILE "states.conf" // There is no leading point for security reasons :)
 
+#define SW_CNT 	1
+#define SSW_CNT	2
+
+
 struct ActualStateStorage {
 
-	bool sw1 = LOW;
-	bool sw2 = LOW;
-	bool ssw1 = LOW;
-	bool ssw2 = LOW;
-	bool ssw3 = LOW;
-	bool ssw4 = LOW;
-	bool ssw5 = LOW;
 
+	bool* sw;
+	bool* ssw;
+
+	byte sw_cnt = SW_CNT;
+	byte ssw_cnt = SSW_CNT;
 
 	ActualStateStorage() {
 		//Initialization of rBoot OTA
@@ -39,6 +41,21 @@ struct ActualStateStorage {
 		//sw1 = LOW;
 		//sw2 = LOW;
 		load();
+	}
+
+	~ActualStateStorage() {
+		delete sw;
+		delete ssw;
+	}
+
+	void setSwCount(byte cnt) {
+		sw_cnt = cnt;
+		sw = new bool[sw_cnt];
+	}
+
+	void setSswCount(byte cnt) {
+		ssw_cnt = cnt;
+		ssw = new bool[ssw_cnt];
 	}
 
 	void load()
@@ -51,17 +68,21 @@ struct ActualStateStorage {
 			fileGetContent(ACT_STATE_FILE, jsonString, size + 1);
 			JsonObject& root = jsonBuffer.parseObject(jsonString);
 
-			JsonObject& switches = root["switches"];
+			JsonObject& jSW = root["sw"];
+			sw_cnt = jSW["cnt"];
+			if (sw_cnt > 0) {
+				sw = new bool[sw_cnt];
+				for (byte i=0; i < sw_cnt; i++)
+					sw[i] = jSW[String(i)];
+			}
 
-			sw1 = switches["sw1"];
-			sw2 = switches["sw2"];
-
-			ssw1 = switches["ssw1"];
-			ssw2 = switches["ssw2"];
-			ssw3 = switches["ssw3"];
-			ssw4 = switches["ssw4"];
-			ssw5 = switches["ssw5"];
-
+			JsonObject& jSSW = root["ssw"];
+			ssw_cnt = jSSW["cnt"];
+			if (ssw_cnt > 0) {
+				ssw = new bool[ssw_cnt];
+				for (byte i=0; i < ssw_cnt; i++)
+					ssw[i] = jSSW[String(i)];
+			}
 			delete[] jsonString;
 		}
 	}
@@ -71,16 +92,19 @@ struct ActualStateStorage {
 		DynamicJsonBuffer jsonBuffer;
 		JsonObject& root = jsonBuffer.createObject();
 
-		JsonObject& switches = jsonBuffer.createObject();
-		root["switches"] = switches;
-		switches["sw1"] = sw1;
-		switches["sw2"] = sw2;
+		if (sw_cnt > 0) {
+			JsonObject& jSW = jsonBuffer.createObject();
+			root["sw"] = jSW;
+			for (byte i=0; i < sw_cnt; i++)
+				jSW[String(i)] = sw[i];
+		}
 
-		switches["ssw1"] = ssw1;
-		switches["ssw2"] = ssw2;
-		switches["ssw3"] = ssw3;
-		switches["ssw4"] = ssw4;
-		switches["ssw5"] = ssw5;
+		if (ssw_cnt > 0) {
+			JsonObject& jSSW = jsonBuffer.createObject();
+			root["ssw"] = jSSW;
+			for (byte i=0; i < ssw_cnt; i++)
+				jSSW[String(i)] = ssw[i];
+		}
 
 		//TODO: add direct file stream writing
 		fileSetContent(ACT_STATE_FILE, root.toJsonString());
@@ -115,15 +139,18 @@ struct ActualStateStorage {
 	String printf() {
 		String result;
 
-		result = "SWITCHES\r\n";
-		result += "\tsw1=" + String(sw1) + "\r\n";
-		result += "\tsw2=" + String(sw2) + "\r\n";
-		result += "SERIAL\r\n";
-		result += "\tssw1=" + String(ssw1) + "\r\n";
-		result += "\tssw2=" + String(ssw2) + "\r\n";
-		result += "\tssw3=" + String(ssw3) + "\r\n";
-		result += "\tssw4=" + String(ssw4) + "\r\n";
-		result += "\tssw5=" + String(ssw5) + "\r\n";
+		result = "SWITCHES[" + String(sw_cnt)+ "]\r\n";
+		if (sw_cnt > 0) {
+			for (byte i=0; i < sw_cnt; i++) {
+				result += "\tsw" + String(i) + "=" + String(sw[i]) + "\r\n";
+			}
+		}
+		result = "SERIAL[" + String(ssw_cnt)+ "]\r\n";
+		if (ssw_cnt > 0) {
+			for (byte i=0; i < ssw_cnt; i++) {
+				result += "\tssw" + String(i) + "=" + String(ssw[i]) + "\r\n";
+			}
+		}
 		return result;
 
 	}
@@ -139,9 +166,17 @@ struct ActualStateStorage {
 		return "State file doesn't exist";
 	}
 
+	/*
 	String update(JsonObject& root) {
 
 		String result;
+
+		if (root.containsKey("sw")) {
+			JsonObject& switches = root["switches"];
+			if (switches.containsKey("sw1")) {
+				this->sw1 = switches["sw1"];
+				result += "sw1, ";
+			}
 
 		if (root.containsKey("switches")) {
 			JsonObject& switches = root["switches"];
@@ -191,40 +226,55 @@ struct ActualStateStorage {
 		this->update(root);
 		this->save();
 	}
+	*/
 
-	void setSw1(bool state) {
-		this->sw1 = state;
-		this->save();
+	void setSw(byte num, bool state) {
+		if ((num >= 0) && (sw_cnt > num)) {
+			this->sw[num] = state;
+			this->save();
+		}
+		else {
+			ERROR_PRINT("ERROR: setSw wrong number access");
+		}
 	}
-	void setSw2(bool state) {
-		this->sw2 = state;
-		this->save();
+
+	void setSsw(byte num, bool state) {
+		if ((num >= 0) && (ssw_cnt > num)) {
+			this->ssw[num] = state;
+			this->save();
+		}
+		else {
+			ERROR_PRINT("ERROR: setSsw wrong number access");
+		}
 	}
-	void setSsw1(bool state) {
-		this->ssw1 = state;
-		this->save();
+
+	bool getSsw(byte num) {
+		bool result = false;
+		if ((num >= 0) && (ssw_cnt > num))
+			result = this->ssw[num];
+
+		return result;
 	}
-	void setSsw2(bool state) {
-		this->ssw2 = state;
-		this->save();
+
+	bool getSw(byte num) {
+		bool result = false;
+		if ((num >= 0) && (sw_cnt > num))
+			result = this->sw[num];
+
+		return result;
 	}
-	void setSsw3(bool state) {
-		this->ssw3 = state;
-		this->save();
-	}
-	void setSsw4(bool state) {
-		this->ssw4 = state;
-		this->save();
-	}
-	void setSsw5(bool state) {
-		this->ssw5 = state;
-		this->save();
-	}
+
 
 	uint8_t getSsw() {
-		uint8_t sw = this->ssw1 + (this->ssw2 << 1) + (this->ssw3 << 2) + (this->ssw4 << 3) + (this->ssw5 << 4);
-		return sw;
+		uint8_t result = 0;
+		if (ssw_cnt > 0) {
+			for (byte i = 0; i < ssw_cnt; i++)
+				result += ssw[i] << i;
+		}
+		//uint8_t sw = this->ssw1 + (this->ssw2 << 1) + (this->ssw3 << 2) + (this->ssw4 << 3) + (this->ssw5 << 4);
+		return result;
 	}
+
 	bool check() {
 		//TODO: need to be coded check for mandatory fields
 		return true;
