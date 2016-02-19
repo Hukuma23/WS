@@ -51,10 +51,13 @@ struct ApplicationSettingsStorage
 	//byte sw2;
 
 	byte* sw;
-	byte sw_cnt;
+	byte sw_cnt=0;
+
+	byte* ssw;
+	byte ssw_cnt=0;
 
 	byte* in;
-	byte in_cnt;
+	byte in_cnt=0;
 	LED led;
 
 	// MODULES
@@ -87,7 +90,7 @@ struct ApplicationSettingsStorage
 
 	ApplicationSettingsStorage() {
 		//Initialization of rBoot OTA
-
+		//Serial.begin(115200);
 		rBootInit();
 		load();
 		loadNetwork();
@@ -267,10 +270,20 @@ struct ApplicationSettingsStorage
 			if (pins.containsKey("sw")) {
 				JsonObject& jSw = pins["sw"];
 				this->sw_cnt = (byte)jSw["cnt"];
-				sw = new byte(sw_cnt);
+				sw = new byte[sw_cnt];
 				for (byte i = 0; i < sw_cnt; i++ ) {
-					if (jSw.containsKey(String(i).c_str()))
-						this->sw[i] = jSw[String(i)];
+					if (jSw.containsKey(String(i+1).c_str()))
+						this->sw[i] = jSw[String(i+1)];
+				}
+			}
+
+			if (pins.containsKey("ssw")) {
+				JsonObject& jSsw = pins["ssw"];
+				this->sw_cnt = (byte)jSsw["cnt"];
+				ssw = new byte[ssw_cnt];
+				for (byte i = 0; i < ssw_cnt; i++ ) {
+					if (jSsw.containsKey(String(i+1).c_str()))
+						this->ssw[i] = jSsw[String(i+1)];
 				}
 			}
 
@@ -283,10 +296,13 @@ struct ApplicationSettingsStorage
 			if (pins.containsKey("in")) {
 				JsonObject& jIn = pins["in"];
 				this->in_cnt = (byte)jIn["cnt"];
-				in = new byte(in_cnt);
-				for (byte i = 0; i < in_cnt; i++ ) {
-					if (jIn.containsKey(String(i).c_str()))
-						this->in[i] = jIn[String(i)];
+
+				if (in_cnt > 0) {
+					in = new byte[in_cnt];
+					for (byte i = 0; i < in_cnt; i++ ) {
+						if (jIn.containsKey(String(i+1).c_str()))
+							this->in[i] = jIn[String(i+1)];
+					}
 				}
 			}
 
@@ -320,7 +336,71 @@ struct ApplicationSettingsStorage
 			delete[] jsonString;
 		}
 	}
+/*
+	void load_debug() {
+		DEBUG4_PRINTLN("*** LoadDebug.started ***");
+		DynamicJsonBuffer jsonBuffer;
+		if (exist())
+		{
+			int size = fileGetSize(APP_SETTINGS_FILE);
+			char* jsonString = new char[size + 1];
+			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
+			JsonObject& root = jsonBuffer.parseObject(jsonString);
 
+			JsonObject& config = root["config"];
+			serial_speed = config["serial_speed"];
+			version = config["version"].toString();
+
+
+			JsonObject& pins = config["pins"];
+
+
+			if (pins.containsKey("sw")) {
+				DEBUG4_PRINTLN("* SW *");
+
+				JsonObject& jSw = pins["sw"];
+				this->sw_cnt = (byte)jSw["cnt"];
+				DEBUG4_PRINTF("sw_cnt=%d; ", sw_cnt);
+
+				sw = new byte[sw_cnt];
+				for (byte i = 0; i < sw_cnt; i++ ) {
+
+					if (jSw.containsKey(String(i+1).c_str())) {
+						this->sw[i] = jSw[String(i+1)];
+						DEBUG4_PRINTF2("sw[%d]=%d; ", i, sw[i]);
+					}
+				}
+				DEBUG4_PRINTLN();
+			}
+
+			if (pins.containsKey("led")) {
+				JsonObject& jLed = pins["led"];
+				this->led.setCount((byte)jLed["cnt"]);
+				this->led.setPin((byte)jLed["pin"]);
+			}
+
+			if (pins.containsKey("in")) {
+				DEBUG4_PRINTLN("* IN *");
+				JsonObject& jIn = pins["in"];
+				this->in_cnt = (byte)jIn["cnt"];
+				DEBUG4_PRINTF("in_cnt=%d; ", in_cnt);
+				if (in_cnt > 0) {
+					in = new byte[in_cnt];
+					for (byte i = 0; i < in_cnt; i++ ) {
+						if (jIn.containsKey(String(i+1).c_str())) {
+							this->in[i] = jIn[String(i+1)];
+							DEBUG4_PRINTF2("in[%d]=%d; ", i, in[i]);
+						}
+					}
+				}
+				DEBUG4_PRINTLN();
+			}
+
+
+			delete[] jsonString;
+		}
+	}
+*/
 	void saveLastWifi() {
 
 		DEBUG1_PRINT("*SLWF");
@@ -440,12 +520,17 @@ struct ApplicationSettingsStorage
 			JsonObject& jSw = pins["sw"];
 			jSw["cnt"] = this->sw_cnt;
 			for (byte i = 0; i < sw_cnt; i++)
-				jSw[String(i)] = sw[i];
+				jSw[String(i+1)] = sw[i];
+
+			JsonObject& jSsw = pins["ssw"];
+			jSsw["cnt"] = this->ssw_cnt;
+			for (byte i = 0; i < ssw_cnt; i++)
+				jSsw[String(i+1)] = ssw[i];
 
 			JsonObject& jIn = pins["in"];
 			jIn["cnt"] = this->in_cnt;
 			for (byte i = 0; i < in_cnt; i++)
-				jIn[String(i)] = in[i];
+				jIn[String(i+1)] = in[i];
 
 			JsonObject& jLed = pins["led"];
 			jLed["cnt"] = this->led.getCount();
@@ -544,18 +629,24 @@ struct ApplicationSettingsStorage
 		JsonObject& jSw = jsonBuffer.createObject();
 		jSw["cnt"] = this->sw_cnt;
 		for (byte i = 0; i < sw_cnt; i++)
-			jSw[String(i)] = sw[i];
+			jSw[String(i+1)] = sw[i];
+
+		JsonObject& jSsw = jsonBuffer.createObject();
+		jSsw["cnt"] = this->ssw_cnt;
+		for (byte i = 0; i < ssw_cnt; i++)
+			jSsw[String(i+1)] = ssw[i];
 
 		JsonObject& jIn = jsonBuffer.createObject();
 		jIn["cnt"] = this->in_cnt;
 		for (byte i = 0; i < in_cnt; i++)
-			jIn[String(i)] = in[i];
+			jIn[String(i+1)] = in[i];
 
 		JsonObject& jLed = jsonBuffer.createObject();
 		jLed["cnt"] = this->led.getCount();
 		jLed["pin"] = this->led.getPin();
 
 		pins["sw"] = jSw;
+		pins["sw"] = jSsw;
 		pins["led"] = jLed;
 		pins["in"] = jIn;
 
@@ -728,17 +819,26 @@ struct ApplicationSettingsStorage
 					JsonObject& jSw = pins["sw"];
 					this->sw_cnt = jSw["cnt"];
 					for (byte i = 0; i < sw_cnt; i++) {
-						if (jSw.containsKey(String(i).c_str()))
-							sw[i] = jSw[String(i)];
+						if (jSw.containsKey(String(i+1).c_str()))
+							sw[i] = jSw[String(i+1)];
 					}
 					result += "sw, ";
+				}
+				if (pins.containsKey("ssw")) {
+					JsonObject& jSsw = pins["ssw"];
+					this->ssw_cnt = jSsw["cnt"];
+					for (byte i = 0; i < ssw_cnt; i++) {
+						if (jSsw.containsKey(String(i+1).c_str()))
+							ssw[i] = jSsw[String(i+1)];
+					}
+					result += "ssw, ";
 				}
 				if (pins.containsKey("in")) {
 					JsonObject& jIn = pins["in"];
 					this->in_cnt = jIn["cnt"];
 					for (byte i = 0; i < in_cnt; i++) {
-						if (jIn.containsKey(String(i).c_str()))
-							in[i] = jIn[String(i)];
+						if (jIn.containsKey(String(i+1).c_str()))
+							in[i] = jIn[String(i+1)];
 					}
 					result += "in, ";
 				}
