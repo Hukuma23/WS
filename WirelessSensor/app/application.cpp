@@ -84,6 +84,8 @@ byte swState[3];
 
 // INSW
 unsigned long pushTime[10] = {0,0,0,0,0,0,0,0,0,0};
+byte pushCount[10];
+bool pushSwitched[10];
 
 
 // MQTT client
@@ -179,19 +181,31 @@ void IRAM_ATTR turnSsw(byte num, bool state) {
 }
 
 void IRAM_ATTR interruptHandlerInSw(byte num) {
-	if ((millis() - pushTime[num]) < AppSettings.debounce_time)
+	if ((millis() - pushTime[num]) > AppSettings.debounce_time) {
+		pushTime[num] = millis();
+		pushSwitched[num] = false;
+		pushCount[num] = 1;
+		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] 1st time, nowState = " + String(ActStates.sw[num]);
+		mqtt.publish(topCfg_Out, logStr.c_str());
+		DEBUG4_PRINTLN(logStr);
 		return;
+	}
+	else {
+		pushCount[num]++;
+	}
 
-	pushTime[num] = millis();
-	turnSw(num, !ActStates.sw[num]);
+	if (((millis() - pushTime[num]) < AppSettings.debounce_time) && (pushCount[num] > 2) && (!pushSwitched[num])) {
 
-	String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] nowState = " + String(ActStates.sw[num]);
-	mqtt.publish(topCfg_Out, logStr.c_str());
+		pushSwitched[num] = true;
+		turnSw(num, !ActStates.sw[num]);
+		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] " + pushCount[num] +" times, nowState = " + String(ActStates.sw[num]);
+		mqtt.publish(topCfg_Out, logStr.c_str());
 
-	DEBUG4_PRINT(pushTime[num]);
-	DEBUG4_PRINTF( "   sw%d = ", num);
-	DEBUG4_PRINT(ActStates.sw[num]);
-	DEBUG4_PRINTLN();
+		DEBUG4_PRINT(pushTime[num]);
+		DEBUG4_PRINTF( "   sw%d = ", num);
+		DEBUG4_PRINT(ActStates.sw[num]);
+		DEBUG4_PRINTLN();
+	}
 }
 
 void IRAM_ATTR interruptHandlerInSw1() {
@@ -1706,15 +1720,15 @@ void init() {
 			}
 
 			if (in_cnt >= 1)
-				attachInterrupt(AppSettings.in[0], interruptHandlerInSw1, RISING);
+				attachInterrupt(AppSettings.in[0], interruptHandlerInSw1, HIGH);
 			if (in_cnt >= 2)
-				attachInterrupt(AppSettings.in[1], interruptHandlerInSw2, RISING);
+				attachInterrupt(AppSettings.in[1], interruptHandlerInSw2, HIGH);
 			if (in_cnt >= 3)
-				attachInterrupt(AppSettings.in[2], interruptHandlerInSw3, RISING);
+				attachInterrupt(AppSettings.in[2], interruptHandlerInSw3, HIGH);
 			if (in_cnt >= 4)
-				attachInterrupt(AppSettings.in[3], interruptHandlerInSw4, RISING);
+				attachInterrupt(AppSettings.in[3], interruptHandlerInSw4, HIGH);
 			if (in_cnt >= 5)
-				attachInterrupt(AppSettings.in[4], interruptHandlerInSw5, RISING);
+				attachInterrupt(AppSettings.in[4], interruptHandlerInSw5, HIGH);
 
 		}
 
