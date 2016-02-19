@@ -150,14 +150,25 @@ void initSerialVars() {
 
 void IRAM_ATTR turnSw(byte num, bool state) {
 
+	DEBUG4_PRINTF2("num=%d; state=%d; ", num, state);
+
 	ActStates.setSw(num, state);
+
 	if (ActStates.getSw(num)) {
+		DEBUG4_PRINTF(" set sw[%d] to GREEN;  ", num);
 		digitalWrite(AppSettings.sw[num], HIGH);
 		AppSettings.led.green(num);
 	}
 	else {
+		DEBUG4_PRINTF(" set sw[%d] to RED;  ", num);
 		digitalWrite(AppSettings.sw[num], LOW);
 		AppSettings.led.red(num);
+	}
+}
+
+void initSw() {
+	for (byte num = 0; num < ActStates.sw_cnt; num++) {
+		turnSw(num, ActStates.sw[num]);
 	}
 }
 
@@ -1100,68 +1111,6 @@ void reconnectOk() {
 
 }
 
-/*
-void reconnectOk() {
-
-	DEBUG4_PRINTLN("I'm RE_CONNECTED");
-
-	wifiCheckCount = 0;
-
-	DEBUG4_PRINT("MQTT.state=");
-	DEBUG4_PRINTLN(mqtt.getConnectionState());
-
-	DEBUG4_PRINTLN("Client name =\"" + mqttClientName + "\"");
-
-	startMqttClient();
-
-	publishSwitches();
-
-	DEBUG4_PRINT("dhtTimer.. ");
-	timerDHT.initializeMs(60 * 1000, readDHT).start();
-	system_soft_wdt_stop();
-	os_delay_us(1000000);
-	DEBUG4_PRINTLN("rearmed");
-	os_delay_us(1000000);
-
-	DEBUG4_PRINT("bmpTimer.. ");
-	timerBMP.initializeMs(60 * 1000, readBarometer).start();
-	os_delay_us(1000000);
-	system_soft_wdt_restart();
-	DEBUG4_PRINTLN("rearmed");
-	os_delay_us(100000);
-	DEBUG4_PRINT("mqttTimer.. ");
-	timerMQTT.initializeMs(30 * 1000, mqtt_loop).start();
-	system_soft_wdt_stop();
-	DEBUG4_PRINTLN("rearmed");
-	os_delay_us(1000000);
-
-	DEBUG4_PRINT("wifiTimer.. ");
-	timerWIFI.initializeMs(300 * 1000, checkWifi).start();
-
-	DEBUG4_PRINTLN("rearmed");
-	system_soft_wdt_restart();
-
-}*/
-
-/*void connectFail() {
-	DEBUG4_PRINTLN("I'm NOT CONNECTED. Need help :(");
-	bool state1 = LOW;
-	for (int i = 0; i < 30; i++) {
-		//digitalWrite(AppSettings.sw1, swState1);
-		digitalWrite(AppSettings.sw1, state1);
-		state1 = !state1;
-		system_soft_wdt_stop();
-		delay(500);
-		system_soft_wdt_restart();
-	}
-
-	system_restart();
-
-	// .. some you code for device configuration ..
-}*/
-
-
-
 // Will be called when WiFi station timeout was reached
 void connectFail() {
 	DEBUG1_PRINTLN("NOT CONNECTED!");
@@ -1680,6 +1629,7 @@ String ShowInfo() {
 	return result;
 }
 
+
 void configureNetwork() {
 	DEBUG4_PRINTLN("There is no config...");
 	DEBUG4_PRINTLN("Please write code to make config for firmware");
@@ -1728,7 +1678,6 @@ void configureNetwork() {
 }
 
 
-
 void init() {
 	//ets_wdt_enable();
 	//ets_wdt_disable();
@@ -1743,22 +1692,27 @@ void init() {
 
 	INFO_PRINT("Firmware started. Version: ");
 	INFO_PRINTLN(AppSettings.version);
+
 	PRINT_MEM();
 	//Serial.print("StartMem: ");
 	//Serial.println(system_get_free_heap_size());
 
 	if (AppSettings.exist()) {
+		ActStates.init();
+
 		//AppSettings.load();
 		//DEBUG4_PRINTLN(AppSettings.print());
 		//DEBUG1_PRINTLN("Config loaded...");
-		//DEBUG4_PRINTLN(AppSettings.printf());
+		//AppSettings.print();
+		//AppSettings.load_debug();
 
 		AppSettings.loadWifiList();
 
-		PRINT_MEM();
+		//PRINT_MEM();
 
 		for (int i=0; i < AppSettings.wifi_cnt; i++)
 			DEBUG4_PRINTLN(AppSettings.wifiList[i]);
+
 
 		WifiAccessPoint.enable(false);
 		WifiStation.enable(true);
@@ -1767,17 +1721,16 @@ void init() {
 		//DEBUG4_PRINT("result of AppSettings.loadNetwork = ");
 		//DEBUG4_PRINTLN(result);
 
-		PRINT_MEM();
+		//PRINT_MEM();
 		//Serial.print("!-- Mem after loadNetwork: ");
 		//Serial.println(system_get_free_heap_size());
 		//if (result==0) {
 		if (!(AppSettings.ssid.equals("")) && (AppSettings.ssid != null)) {
 			WifiStation.config(AppSettings.ssid, AppSettings.password);
 			WifiStation.waitConnection(connectOk, 30, connectFail); // We recommend 20+ seconds for connection timeout at start
-			DEBUG1_PRINT("ASet.ssid = ");
-			DEBUG1_PRINTLN(AppSettings.ssid);
-			DEBUG1_PRINT("ASet.pass = ");
-			DEBUG1_PRINTLN(AppSettings.password);
+			DEBUG1_PRINTF("ASet.ssid = %s  ", AppSettings.ssid.c_str());
+			DEBUG1_PRINTF("pass = %s", AppSettings.password.c_str());
+			DEBUG1_PRINTLN();
 			//delay(1000);
 
 			PRINT_MEM();
@@ -1786,8 +1739,6 @@ void init() {
 			// Set system ready callback method
 			System.onReady(ready);
 		}
-
-		ActStates.setSwCount(AppSettings.sw_cnt);
 
 		if (AppSettings.is_dht)
 			dht.begin();
@@ -1801,12 +1752,13 @@ void init() {
 			Wire.begin();
 		}
 
+		PRINT_MEM();
+
 		if (AppSettings.is_insw) {
 			byte in_cnt = AppSettings.in_cnt;
 			for (byte i = 0; i < in_cnt; i++) {
 				pinMode(AppSettings.in[i], INPUT);
 			}
-
 
 			if (in_cnt >= 1)
 				attachInterrupt(AppSettings.in[0], interruptHandlerInSw1, RISING);
@@ -1821,11 +1773,11 @@ void init() {
 
 		}
 
-		for (byte i = 0; i < AppSettings.sw_cnt; i++) {
-			pinMode(AppSettings.sw[i], OUTPUT);
-			turnSw(i, ActStates.sw[i]);
-		}
+		//PRINT_MEM();
 
+		initSw();
+
+		PRINT_MEM();
 
 
 
@@ -1841,5 +1793,5 @@ void init() {
 	//Serial.print("New CPU frequency is:");
 	//Serial.println((int)System.getCpuFrequency());
 
-	DEBUG4_PRINTLN("_init.end");
+	//DEBUG4_PRINTLN("_init.end");
 }
