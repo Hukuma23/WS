@@ -90,8 +90,8 @@ unsigned long pushTime[10] = {0,0,0,0,0,0,0,0,0,0};
 MqttClient mqtt(AppSettings.broker_ip.toString(), AppSettings.broker_port==0?1883:AppSettings.broker_port, onMessageReceived);
 
 String topSubscr;
-String topSw1_In;
-String topSw2_In;
+
+String topSw_In;
 
 String topCfg_In;
 String topCfg_Out;
@@ -112,11 +112,7 @@ String topLog_Out;
 String topStart_Out;
 
 // Serial
-String sTopSw1_In;
-String sTopSw2_In;
-String sTopSw3_In;
-String sTopSw4_In;
-String sTopSw5_In;
+String sTopSw_In;
 
 String sTopSw_Out;
 
@@ -224,19 +220,12 @@ void var_init() {
 	String topicClient = AppSettings.client_topic;
 
 	topSubscr = topicMain + "/in/#";
-	topSw1_In = topicMain + "/in/" + topicClient + "sw1";
-	topSw2_In = topicMain + "/in/" + topicClient + "sw2";
 
+	topSw_In = topicMain + "/in/" + topicClient + "sw";
 	topSw_Out = topicMain + "/out/" + topicClient + "sw";
-	//topSw2_Out = topicMain + "/out/" + topicClient + "sw2";
 
 	// * Serial start *
-	sTopSw1_In = topicMain + "/in/" + topicClient + "ssw1";
-	sTopSw2_In = topicMain + "/in/" + topicClient + "ssw2";
-	sTopSw3_In = topicMain + "/in/" + topicClient + "ssw3";
-	sTopSw4_In = topicMain + "/in/" + topicClient + "ssw4";
-	sTopSw5_In = topicMain + "/in/" + topicClient + "ssw5";
-
+	sTopSw_In = topicMain + "/in/" + topicClient + "ssw1";
 	sTopSw_Out = topicMain + "/out/" + topicClient + "ssw";
 	// * Serial end *
 
@@ -346,64 +335,32 @@ void onMessageReceived(String topic, String message) {
 	DEBUG4_PRINT(message);
 	DEBUG4_PRINTLN("\"");
 
-	if (topic.equals(topSw1_In)) {
-		if (message.equals("ON")) {
-			turnSw(0, HIGH);
-		} else if (message.equals("OFF")) {
-			turnSw(0, LOW);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	} else if (topic.equals(topSw2_In)) {
-		if (message.equals("ON")) {
-			turnSw(1, HIGH);
-		} else if (message.equals("OFF")) {
-			turnSw(1, LOW);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
+	// SW
+	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
+		if (topic.equals((topSw_In+String(i+1)))) {
+			if (message.equals("ON")) {
+				turnSw(i, HIGH);
+			} else if (message.equals("OFF")) {
+				turnSw(i, LOW);
+			} else
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (topSw_In+String(i+1)).c_str());
+		}
 	}
+
 	// *** Serial block ***
-	else if (topic.equals(sTopSw1_In)) {
-		if (message.equals("ON")) {
-			turnSsw(0, HIGH);
-		} else if (message.equals("OFF")) {
-			turnSsw(0, LOW);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	}
-	else if (topic.equals(sTopSw2_In)) {
-		if (message.equals("ON")) {
-			turnSsw(1, HIGH);
-		} else if (message.equals("OFF")) {
-			turnSsw(1, LOW);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	}
-	else if (topic.equals(sTopSw3_In)) {
-		if (message.equals("ON")) {
-			turnSsw(2, HIGH);
-		} else if (message.equals("OFF")) {
-			turnSsw(2, LOW);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	}
-	else if (topic.equals(sTopSw4_In)) {
-		if (message.equals("ON")) {
-			turnSsw(3, HIGH);
-		} else if (message.equals("OFF")) {
-			turnSsw(3, LOW);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	}
-	else if (topic.equals(sTopSw5_In)) {
-		if (message.equals("ON")) {
-			turnSsw(4, HIGH);
-		} else if (message.equals("OFF")) {
-			turnSsw(4, LOW);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
+
+	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
+		if (topic.equals((sTopSw_In+String(i+1)))) {
+			if (message.equals("ON")) {
+				turnSsw(i, HIGH);
+			} else if (message.equals("OFF")) {
+				turnSsw(i, LOW);
+			} else
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (sTopSw_In+String(i+1)).c_str());
+		}
 	}
 	// *** Serial block end ***
-	else if (topic.equals(topCfg_In)) {
+	if (topic.equals(topCfg_In)) {
 
 		int msgLen = message.length() + 1;
 		DEBUG4_PRINT("msgLen = ");
@@ -481,18 +438,6 @@ void onMessageReceived(String topic, String message) {
 			AppSettings.save();
 			mqtt.publish(topCfg_Out, "Settings saved.");
 		}
-		else if (cmd.equals("set_printf")) {
-			String strPrintf = "dummy";//AppSettings.printf();
-			DEBUG4_PRINTLN(strPrintf);
-			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrintf.length());
-			mqtt.publish(topCfg_Out, strPrintf);
-		}
-		else if (cmd.equals("set_print")) {
-			String strPrint = "dummy";//AppSettings.print();
-			DEBUG4_PRINTLN(strPrint);
-			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrint.length());
-			mqtt.publish(topCfg_Out, strPrint);
-		}
 		else if (cmd.equals("act_print")) {
 			String strPrint = ActStates.print();
 			DEBUG4_PRINTLN(strPrint);
@@ -564,9 +509,9 @@ void publishSerialSw() {
 
 	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
 		if (ActStates.ssw[i])
-			mqtt.publish(sTopSw_Out+String(i), "ON");
+			mqtt.publish(sTopSw_Out+String(i+1), "ON");
 		else
-			mqtt.publish(sTopSw_Out+String(i), "OFF");
+			mqtt.publish(sTopSw_Out+String(i+1), "OFF");
 	}
 
 	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
@@ -1156,9 +1101,9 @@ void publishSwitches() {
 
 	for (byte i = 0; i < ActStates.sw_cnt; i++) {
 		if (ActStates.getSw(i))
-			mqtt.publish(topSw_Out + String(i), "ON");
+			mqtt.publish(topSw_Out + String(i+1), "ON");
 		else
-			mqtt.publish(topSw_Out + String(i), "OFF");
+			mqtt.publish(topSw_Out + String(i+1), "OFF");
 	}
 
 
