@@ -22,13 +22,13 @@
 //#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
 #define ACT_STATE_FILE "states.conf" // There is no leading point for security reasons :)
 
-#define SW_CNT 	1
-#define SSW_CNT	2
+#define SW_CNT 	0
+#define SSW_CNT	0
 
 
 struct ActualStateStorage {
 
-
+	bool needInit = false;
 	bool* sw;
 	bool* ssw;
 
@@ -48,6 +48,7 @@ struct ActualStateStorage {
 		delete ssw;
 	}
 
+	/*
 	void setSwCount(byte cnt) {
 		sw_cnt = cnt;
 		sw = new bool[sw_cnt];
@@ -56,13 +57,11 @@ struct ActualStateStorage {
 	void setSswCount(byte cnt) {
 		ssw_cnt = cnt;
 		ssw = new bool[ssw_cnt];
-	}
+	}*/
 
-	void load()
-	{
+	void load() {
 		DynamicJsonBuffer jsonBuffer;
-		if (exist())
-		{
+		if (exist()) {
 			int size = fileGetSize(ACT_STATE_FILE);
 			char* jsonString = new char[size + 1];
 			fileGetContent(ACT_STATE_FILE, jsonString, size + 1);
@@ -85,6 +84,28 @@ struct ActualStateStorage {
 			}
 			delete[] jsonString;
 		}
+		else {
+			needInit = true;
+		}
+	}
+
+	void init() {
+		if (needInit) {
+			sw_cnt = AppSettings.sw_cnt;
+			if (sw_cnt > 0) {
+				sw = new bool[sw_cnt];
+				for (byte i=0; i < sw_cnt; i++)
+					sw[i] = false;
+			}
+
+			ssw_cnt = AppSettings.ssw_cnt;
+			if (ssw_cnt > 0) {
+				ssw = new bool[ssw_cnt];
+				for (byte i=0; i < ssw_cnt; i++)
+					ssw[i] = false;
+			}
+			needInit = false;
+		}
 	}
 
 	void save()
@@ -95,6 +116,7 @@ struct ActualStateStorage {
 		if (sw_cnt > 0) {
 			JsonObject& jSW = jsonBuffer.createObject();
 			root["sw"] = jSW;
+			jSW["cnt"] = sw_cnt;
 			for (byte i=0; i < sw_cnt; i++)
 				jSW[String(i)] = sw[i];
 		}
@@ -102,6 +124,7 @@ struct ActualStateStorage {
 		if (ssw_cnt > 0) {
 			JsonObject& jSSW = jsonBuffer.createObject();
 			root["ssw"] = jSSW;
+			jSSW["cnt"] = ssw_cnt;
 			for (byte i=0; i < ssw_cnt; i++)
 				jSSW[String(i)] = ssw[i];
 		}
@@ -226,12 +249,14 @@ struct ActualStateStorage {
 		this->update(root);
 		this->save();
 	}
-	*/
+	 */
 
 	void setSw(byte num, bool state) {
 		if ((num >= 0) && (sw_cnt > num)) {
-			this->sw[num] = state;
-			this->save();
+			if (sw[num] != state) {
+				this->sw[num] = state;
+				this->save();
+			}
 		}
 		else {
 			ERROR_PRINT("ERROR: setSw wrong number access");
@@ -240,8 +265,10 @@ struct ActualStateStorage {
 
 	void setSsw(byte num, bool state) {
 		if ((num >= 0) && (ssw_cnt > num)) {
-			this->ssw[num] = state;
-			this->save();
+			if (ssw[num] != state) {
+				this->ssw[num] = state;
+				this->save();
+			}
 		}
 		else {
 			ERROR_PRINT("ERROR: setSsw wrong number access");
@@ -257,10 +284,11 @@ struct ActualStateStorage {
 	}
 
 	bool getSw(byte num) {
-		bool result = false;
+		bool result = null;
 		if ((num >= 0) && (sw_cnt > num))
 			result = this->sw[num];
-
+		else
+			ERROR_PRINT("ERROR: getSw wrong number access");
 		return result;
 	}
 
