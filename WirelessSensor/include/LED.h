@@ -3,27 +3,18 @@
  *
  *  Created on: 02 февраля 2016 г.
  *      Author: Nikita Litvinov
+ *
+ *      inside the Class we use GRB instead of RGB because GRB will be used by WS2812b natively
  */
 
 #include <SmingCore/SmingCore.h>
 #include <WS2812/WS2812.h>
+#include <Logger.h>
 
 #ifndef INCLUDE_LED_H_
 #define INCLUDE_LED_H_
 
 #define BRIGHT	0x10
-
-struct RGB {
-private:
-	byte iBright;
-	byte iRed;
-	byte iGreen;
-	byte iBlue;
-public:
-	RGB() : iBright(BRIGHT), iRed(0), iGreen(0), iBlue(0) {};
-	RGB(byte bright) : iBright(bright), iRed(0), iGreen(0), iBlue(0) {};
-
-};
 
 class LED {
 
@@ -31,7 +22,7 @@ private:
 	byte bright;
 	byte pin;
 	byte cnt;
-	char* led;
+	char* led; // !!!-- GRB will be used instead of RGB --!!!
 
 	void setColor(byte num, char* color);
 
@@ -56,6 +47,8 @@ public:
 	void blue(byte num);
 	void black(byte num);
 	void white(byte num);
+
+	void print();
 
 
 	void rgb (byte num, byte red, byte green, byte blue);

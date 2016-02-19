@@ -8,6 +8,7 @@
 #include <LED.h>
 
 
+
 LED::~LED() {
 	delete led;
 }
@@ -60,17 +61,17 @@ void LED::setColor(byte num, char* color) {
 }
 
 void LED::show() {
-	ws2812_writergb(pin, led, sizeof(led));
+	ws2812_writegrb(pin, led, (cnt*3));
 }
 
 void LED::red(byte num) {
-	char color[3] = {bright,0,0};
+	char color[3] = {0,bright,0};
 	setColor(num, color);
 	show();
 }
 
 void LED::green(byte num) {
-	char color[3] = {0,bright,0};
+	char color[3] = {bright,0,0};
 	setColor(num, color);
 	show();
 }
@@ -93,9 +94,19 @@ void LED::white(byte num) {
 }
 
 void LED::rgb (byte num, byte red, byte green, byte blue) {
-	char color[3] = {red,green,blue};
+	char color[3] = {green,red,blue};
 	setColor(num, color);
 	show();
+}
+
+void LED::print() {
+	DEBUG4_PRINTF("led[%d] (G R B): ", cnt);
+	for (byte i = 0; i < cnt; i++){
+		for (byte c=0; c < 3; c++) {
+			DEBUG4_PRINTF("%03d ", (byte)led[(i*3)+c]);
+		}
+		DEBUG4_PRINT("  ");
+	}
 }
 
 
