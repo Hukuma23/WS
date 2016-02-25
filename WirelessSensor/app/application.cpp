@@ -239,7 +239,7 @@ void var_init() {
 	topSw_Out = topicMain + "/out/" + topicClient + "sw";
 
 	// * Serial start *
-	sTopSw_In = topicMain + "/in/" + topicClient + "ssw1";
+	sTopSw_In = topicMain + "/in/" + topicClient + "ssw";
 	sTopSw_Out = topicMain + "/out/" + topicClient + "ssw";
 	// * Serial end *
 
