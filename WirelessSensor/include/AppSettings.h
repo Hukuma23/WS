@@ -6,6 +6,7 @@
 
 #include <SmingCore/SmingCore.h>
 #include <Logger.h>
+#include <LED.h>
 
 #ifndef INCLUDE_APPSETTINGS_H_
 #define INCLUDE_APPSETTINGS_H_
@@ -46,8 +47,18 @@ struct ApplicationSettingsStorage
 	byte scl;
 	byte dht;
 	byte ds;
-	byte sw1;
-	byte sw2;
+	//byte sw1;
+	//byte sw2;
+
+	byte* sw;
+	byte sw_cnt=0;
+
+	byte* ssw;
+	byte ssw_cnt=0;
+
+	byte* in;
+	byte in_cnt=0;
+	LED led;
 
 	// MODULES
 	bool is_wifi = false;
@@ -55,6 +66,7 @@ struct ApplicationSettingsStorage
 	bool is_bmp = false;
 	bool is_ds = false;
 	bool is_serial = false;
+	bool is_insw = false;
 
 	// TIMERS
 	unsigned long shift_mqtt = 10000;
@@ -73,13 +85,16 @@ struct ApplicationSettingsStorage
 	unsigned long interval_listener = 200;
 	unsigned long interval_collector = 30000;
 	unsigned long interval_receiver = 30000;
+	unsigned long debounce_time = 1000;
 
 
 	ApplicationSettingsStorage() {
 		//Initialization of rBoot OTA
+		//Serial.begin(115200);
 		rBootInit();
 		load();
 		loadNetwork();
+
 	}
 
 	void loadWifiList() {
@@ -251,8 +266,45 @@ struct ApplicationSettingsStorage
 			scl = pins["scl"];
 			dht = pins["dht"];
 			ds = pins["ds"];
-			sw1 = pins["sw1"];
-			sw2 = pins["sw2"];
+
+			if (pins.containsKey("sw")) {
+				JsonObject& jSw = pins["sw"];
+				this->sw_cnt = (byte)jSw["cnt"];
+				sw = new byte[sw_cnt];
+				for (byte i = 0; i < sw_cnt; i++ ) {
+					if (jSw.containsKey(String(i+1).c_str()))
+						this->sw[i] = jSw[String(i+1)];
+				}
+			}
+
+			if (pins.containsKey("ssw")) {
+				JsonObject& jSsw = pins["ssw"];
+				this->sw_cnt = (byte)jSsw["cnt"];
+				ssw = new byte[ssw_cnt];
+				for (byte i = 0; i < ssw_cnt; i++ ) {
+					if (jSsw.containsKey(String(i+1).c_str()))
+						this->ssw[i] = jSsw[String(i+1)];
+				}
+			}
+
+			if (pins.containsKey("led")) {
+				JsonObject& jLed = pins["led"];
+				this->led.setCount((byte)jLed["cnt"]);
+				this->led.setPin((byte)jLed["pin"]);
+			}
+
+			if (pins.containsKey("in")) {
+				JsonObject& jIn = pins["in"];
+				this->in_cnt = (byte)jIn["cnt"];
+
+				if (in_cnt > 0) {
+					in = new byte[in_cnt];
+					for (byte i = 0; i < in_cnt; i++ ) {
+						if (jIn.containsKey(String(i+1).c_str()))
+							this->in[i] = jIn[String(i+1)];
+					}
+				}
+			}
 
 			JsonObject& modules = config["modules"];
 			is_dht = modules["is_dht"];
@@ -260,6 +312,7 @@ struct ApplicationSettingsStorage
 			is_ds = modules["is_ds"];
 			is_wifi = modules["is_wifi"];
 			is_serial = modules["is_serial"];
+			is_insw = modules["is_insw"];
 
 			JsonObject& timers = config["timers"];
 			shift_mqtt = timers["shift_mqtt"];
@@ -278,11 +331,76 @@ struct ApplicationSettingsStorage
 			interval_listener = timers["interval_listener"];
 			interval_collector = timers["interval_collector"];
 			interval_receiver = timers["interval_receiver"];
+			debounce_time = timers["debounce_time"];
 
 			delete[] jsonString;
 		}
 	}
+/*
+	void load_debug() {
+		DEBUG4_PRINTLN("*** LoadDebug.started ***");
+		DynamicJsonBuffer jsonBuffer;
+		if (exist())
+		{
+			int size = fileGetSize(APP_SETTINGS_FILE);
+			char* jsonString = new char[size + 1];
+			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
+			JsonObject& root = jsonBuffer.parseObject(jsonString);
 
+			JsonObject& config = root["config"];
+			serial_speed = config["serial_speed"];
+			version = config["version"].toString();
+
+
+			JsonObject& pins = config["pins"];
+
+
+			if (pins.containsKey("sw")) {
+				DEBUG4_PRINTLN("* SW *");
+
+				JsonObject& jSw = pins["sw"];
+				this->sw_cnt = (byte)jSw["cnt"];
+				DEBUG4_PRINTF("sw_cnt=%d; ", sw_cnt);
+
+				sw = new byte[sw_cnt];
+				for (byte i = 0; i < sw_cnt; i++ ) {
+
+					if (jSw.containsKey(String(i+1).c_str())) {
+						this->sw[i] = jSw[String(i+1)];
+						DEBUG4_PRINTF2("sw[%d]=%d; ", i, sw[i]);
+					}
+				}
+				DEBUG4_PRINTLN();
+			}
+
+			if (pins.containsKey("led")) {
+				JsonObject& jLed = pins["led"];
+				this->led.setCount((byte)jLed["cnt"]);
+				this->led.setPin((byte)jLed["pin"]);
+			}
+
+			if (pins.containsKey("in")) {
+				DEBUG4_PRINTLN("* IN *");
+				JsonObject& jIn = pins["in"];
+				this->in_cnt = (byte)jIn["cnt"];
+				DEBUG4_PRINTF("in_cnt=%d; ", in_cnt);
+				if (in_cnt > 0) {
+					in = new byte[in_cnt];
+					for (byte i = 0; i < in_cnt; i++ ) {
+						if (jIn.containsKey(String(i+1).c_str())) {
+							this->in[i] = jIn[String(i+1)];
+							DEBUG4_PRINTF2("in[%d]=%d; ", i, in[i]);
+						}
+					}
+				}
+				DEBUG4_PRINTLN();
+			}
+
+
+			delete[] jsonString;
+		}
+	}
+*/
 	void saveLastWifi() {
 
 		DEBUG1_PRINT("*SLWF");
@@ -398,8 +516,25 @@ struct ApplicationSettingsStorage
 			pins["scl"] = scl;
 			pins["dht"] = dht;
 			pins["ds"] = ds;
-			pins["sw1"] = sw1;
-			pins["sw2"] = sw2;
+
+			JsonObject& jSw = pins["sw"];
+			jSw["cnt"] = this->sw_cnt;
+			for (byte i = 0; i < sw_cnt; i++)
+				jSw[String(i+1)] = sw[i];
+
+			JsonObject& jSsw = pins["ssw"];
+			jSsw["cnt"] = this->ssw_cnt;
+			for (byte i = 0; i < ssw_cnt; i++)
+				jSsw[String(i+1)] = ssw[i];
+
+			JsonObject& jIn = pins["in"];
+			jIn["cnt"] = this->in_cnt;
+			for (byte i = 0; i < in_cnt; i++)
+				jIn[String(i+1)] = in[i];
+
+			JsonObject& jLed = pins["led"];
+			jLed["cnt"] = this->led.getCount();
+			jLed["pin"] = this->led.getPin();
 
 			JsonObject& modules = config["modules"];
 			modules["is_dht"] = is_dht;
@@ -407,6 +542,7 @@ struct ApplicationSettingsStorage
 			modules["is_ds"] = is_ds;
 			modules["is_wifi"] = is_wifi;
 			modules["is_serial"] = is_serial;
+			modules["is_insw"] = is_insw;
 
 			JsonObject& timers = config["timers"];
 			timers["shift_mqtt"] = shift_mqtt;
@@ -425,6 +561,7 @@ struct ApplicationSettingsStorage
 			timers["interval_listener"] = interval_listener;
 			timers["interval_collector"] = interval_collector;
 			timers["interval_receiver"] = interval_receiver;
+			timers["debounce_time"] = debounce_time;
 
 			fileSetContent(APP_SETTINGS_FILE, root.toJsonString());
 			DEBUG4_PRINTLN(root.toJsonString());
@@ -488,8 +625,30 @@ struct ApplicationSettingsStorage
 		pins["scl"] = scl;
 		pins["dht"] = dht;
 		pins["ds"] = ds;
-		pins["sw1"] = sw1;
-		pins["sw2"] = sw2;
+
+		JsonObject& jSw = jsonBuffer.createObject();
+		jSw["cnt"] = this->sw_cnt;
+		for (byte i = 0; i < sw_cnt; i++)
+			jSw[String(i+1)] = sw[i];
+
+		JsonObject& jSsw = jsonBuffer.createObject();
+		jSsw["cnt"] = this->ssw_cnt;
+		for (byte i = 0; i < ssw_cnt; i++)
+			jSsw[String(i+1)] = ssw[i];
+
+		JsonObject& jIn = jsonBuffer.createObject();
+		jIn["cnt"] = this->in_cnt;
+		for (byte i = 0; i < in_cnt; i++)
+			jIn[String(i+1)] = in[i];
+
+		JsonObject& jLed = jsonBuffer.createObject();
+		jLed["cnt"] = this->led.getCount();
+		jLed["pin"] = this->led.getPin();
+
+		pins["sw"] = jSw;
+		pins["sw"] = jSsw;
+		pins["led"] = jLed;
+		pins["in"] = jIn;
 
 		JsonObject& modules = jsonBuffer.createObject();
 		modules["is_dht"] = is_dht;
@@ -497,6 +656,7 @@ struct ApplicationSettingsStorage
 		modules["is_ds"] = is_ds;
 		modules["is_wifi"] = is_wifi;
 		modules["is_serial"] = is_serial;
+		modules["is_insw"] = is_insw;
 
 		JsonObject& timers = jsonBuffer.createObject();
 		timers["shift_mqtt"] = shift_mqtt;
@@ -515,6 +675,7 @@ struct ApplicationSettingsStorage
 		timers["interval_listener"] = interval_listener;
 		timers["interval_collector"] = interval_collector;
 		timers["interval_receiver"] = interval_receiver;
+		timers["debounce_time"] = debounce_time;
 
 		config["networks"] = networks;
 		config["modules"] = modules;
@@ -654,13 +815,38 @@ struct ApplicationSettingsStorage
 					this->ds = pins["ds"];
 					result += "ds, ";
 				}
-				if (pins.containsKey("sw1")) {
-					this->sw1 = pins["sw1"];
-					result += "sw1, ";
+				if (pins.containsKey("sw")) {
+					JsonObject& jSw = pins["sw"];
+					this->sw_cnt = jSw["cnt"];
+					for (byte i = 0; i < sw_cnt; i++) {
+						if (jSw.containsKey(String(i+1).c_str()))
+							sw[i] = jSw[String(i+1)];
+					}
+					result += "sw, ";
 				}
-				if (pins.containsKey("sw2")) {
-					this->sw2 = pins["sw2"];
-					result += "sw2, ";
+				if (pins.containsKey("ssw")) {
+					JsonObject& jSsw = pins["ssw"];
+					this->ssw_cnt = jSsw["cnt"];
+					for (byte i = 0; i < ssw_cnt; i++) {
+						if (jSsw.containsKey(String(i+1).c_str()))
+							ssw[i] = jSsw[String(i+1)];
+					}
+					result += "ssw, ";
+				}
+				if (pins.containsKey("in")) {
+					JsonObject& jIn = pins["in"];
+					this->in_cnt = jIn["cnt"];
+					for (byte i = 0; i < in_cnt; i++) {
+						if (jIn.containsKey(String(i+1).c_str()))
+							in[i] = jIn[String(i+1)];
+					}
+					result += "in, ";
+				}
+				if (pins.containsKey("led")) {
+					JsonObject& jLed = pins["led"];
+					this->led.setCount((byte)jLed["cnt"]);
+					this->led.setPin((byte)jLed["pin"]);
+					result += "led, ";
 				}
 			}
 
@@ -685,6 +871,10 @@ struct ApplicationSettingsStorage
 				if (modules.containsKey("is_serial")) {
 					this->is_serial = modules["is_serial"];
 					result += "is_serial, ";
+				}
+				if (modules.containsKey("is_insw")) {
+					this->is_insw = modules["is_insw"];
+					result += "is_insw, ";
 				}
 			}
 
@@ -750,6 +940,10 @@ struct ApplicationSettingsStorage
 				if (timers.containsKey("interval_receiver")) {
 					this->interval_receiver = timers["interval_receiver"];
 					result += "interval_receiver, ";
+				}
+				if (timers.containsKey("debounce_time")) {
+					this->debounce_time = timers["debounce_time"];
+					result += "debounce_time, ";
 				}
 			}
 

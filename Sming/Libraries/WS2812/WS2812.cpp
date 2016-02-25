@@ -8,19 +8,19 @@
 static void ICACHE_FLASH_ATTR send_ws_0(uint8_t gpio)
 {
     uint8_t i;
-    i = 4; while (i--) GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 1 << gpio);
-    i = 9; while (i--) GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, 1 << gpio);
+    i = 3; while (i--) GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 1 << gpio);
+    i = 8; while (i--) GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, 1 << gpio);
 }
 
 static void ICACHE_FLASH_ATTR send_ws_1(uint8_t gpio)
 {
     uint8_t i;
-    i = 8; while (i--) GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 1 << gpio);
-    i = 6; while (i--) GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, 1 << gpio);
+    i = 7; while (i--) GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 1 << gpio);
+    i = 5; while (i--) GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, 1 << gpio);
 }
 
 // Byte triples in the buffer are interpreted as R G B values and sent to the hardware as G R B.
-int ICACHE_FLASH_ATTR ws2812_writergb(uint8_t gpio, char *buffer, size_t length)
+/*int ICACHE_FLASH_ATTR ws2812_writergb(uint8_t gpio, char *buffer, size_t length)
 {
     // Initialize the output pin:
     pinMode(gpio, OUTPUT);
@@ -37,6 +37,35 @@ int ICACHE_FLASH_ATTR ws2812_writergb(uint8_t gpio, char *buffer, size_t length)
         buffer[i] = g;
         buffer[i + 1] = r;
     }
+
+    // Do not remove these:
+    os_delay_us(1);
+    os_delay_us(1);
+
+    // Send the buffer:
+    ets_intr_lock();
+    const char * const end = buffer + length;
+    while (buffer != end) {
+        uint8_t mask = 0x80;
+        while (mask) {
+            (*buffer & mask) ? send_ws_1(gpio) : send_ws_0(gpio);
+            mask >>= 1;
+        }
+        ++buffer;
+    }
+    ets_intr_unlock();
+}*/
+
+
+// Byte triples in the buffer are interpreted as G R B values and sent to the hardware as G R B.
+int ICACHE_FLASH_ATTR ws2812_writegrb(uint8_t gpio, char *buffer, size_t length)
+{
+    // Initialize the output pin:
+    pinMode(gpio, OUTPUT);
+    digitalWrite(gpio, 0);
+
+    // Ignore incomplete Byte triples at the end of buffer:
+    length -= length % 3;
 
     // Do not remove these:
     os_delay_us(1);

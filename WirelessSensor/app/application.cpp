@@ -8,6 +8,7 @@
 #include <AppSettings.h>
 #include <ActStates.h>
 #include <Logger.h>
+#include <LED.h>
 
 FTPServer ftp;
 
@@ -81,19 +82,23 @@ float sBMPTemp, sBMPPress;
 int16_t sWaterCold, sWaterHot;
 byte swState[3];
 
+// INSW
+unsigned long pushTime[10] = {0,0,0,0,0,0,0,0,0,0};
+byte pushCount[10];
+bool pushSwitched[10];
 
 
 // MQTT client
 MqttClient mqtt(AppSettings.broker_ip.toString(), AppSettings.broker_port==0?1883:AppSettings.broker_port, onMessageReceived);
 
 String topSubscr;
-String topSw1_In;
-String topSw2_In;
+
+String topSw_In;
 
 String topCfg_In;
 String topCfg_Out;
 
-String topSw1_Out;
+String topSw_Out;
 String topSw2_Out;
 
 String topTemp1_Out;
@@ -109,17 +114,10 @@ String topLog_Out;
 String topStart_Out;
 
 // Serial
-String sTopSw1_In;
-String sTopSw2_In;
-String sTopSw3_In;
-String sTopSw4_In;
-String sTopSw5_In;
+String sTopSw_In;
 
-String sTopSw1_Out;
-String sTopSw2_Out;
-String sTopSw3_Out;
-String sTopSw4_Out;
-String sTopSw5_Out;
+String sTopSw_Out;
+
 
 String topWaterCold_Out;
 String topWaterHot_Out;
@@ -148,30 +146,101 @@ void initSerialVars() {
 	}
 }
 
+void IRAM_ATTR turnSw(byte num, bool state) {
+
+	DEBUG4_PRINTF2("num=%d; state=%d; ", num, state);
+
+	ActStates.setSw(num, state);
+
+	if (ActStates.getSw(num)) {
+		DEBUG4_PRINTF(" set sw[%d] to GREEN;  ", num);
+		digitalWrite(AppSettings.sw[num], HIGH);
+		AppSettings.led.green(num);
+	}
+	else {
+		DEBUG4_PRINTF(" set sw[%d] to RED;  ", num);
+		digitalWrite(AppSettings.sw[num], LOW);
+		AppSettings.led.red(num);
+	}
+}
+
+void initSw() {
+	for (byte num = 0; num < ActStates.sw_cnt; num++) {
+		turnSw(num, ActStates.sw[num]);
+	}
+}
+
+void IRAM_ATTR turnSsw(byte num, bool state) {
+	if (state == HIGH) {
+		ActStates.setSsw(num, HIGH);
+		protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, num+1);
+	} else {
+		ActStates.setSsw(num, LOW);
+		protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, num+1);
+	}
+}
+
+void IRAM_ATTR interruptHandlerInSw(byte num) {
+	if ((millis() - pushTime[num]) > AppSettings.debounce_time) {
+		pushTime[num] = millis();
+		pushSwitched[num] = false;
+		pushCount[num] = 1;
+		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] 1st time, nowState = " + String(ActStates.sw[num]);
+		mqtt.publish(topCfg_Out, logStr.c_str());
+		DEBUG4_PRINTLN(logStr);
+		return;
+	}
+	else {
+		pushCount[num]++;
+	}
+
+	if (((millis() - pushTime[num]) < AppSettings.debounce_time) && (pushCount[num] > 2) && (!pushSwitched[num])) {
+
+		pushSwitched[num] = true;
+		turnSw(num, !ActStates.sw[num]);
+		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] " + pushCount[num] +" times, nowState = " + String(ActStates.sw[num]);
+		mqtt.publish(topCfg_Out, logStr.c_str());
+
+		DEBUG4_PRINT(pushTime[num]);
+		DEBUG4_PRINTF( "   sw%d = ", num);
+		DEBUG4_PRINT(ActStates.sw[num]);
+		DEBUG4_PRINTLN();
+	}
+}
+
+void IRAM_ATTR interruptHandlerInSw1() {
+	interruptHandlerInSw(0);
+}
+
+void IRAM_ATTR interruptHandlerInSw2() {
+	interruptHandlerInSw(1);
+}
+
+void IRAM_ATTR interruptHandlerInSw3() {
+	interruptHandlerInSw(2);
+}
+
+void IRAM_ATTR interruptHandlerInSw4() {
+	interruptHandlerInSw(3);
+}
+
+void IRAM_ATTR interruptHandlerInSw5() {
+	interruptHandlerInSw(4);
+}
+
 void var_init() {
 	DEBUG4_PRINTLN("_var_init");
 	String topicMain = AppSettings.main_topic;
 	String topicClient = AppSettings.client_topic;
 
 	topSubscr = topicMain + "/in/#";
-	topSw1_In = topicMain + "/in/" + topicClient + "sw1";
-	topSw2_In = topicMain + "/in/" + topicClient + "sw2";
 
-	topSw1_Out = topicMain + "/out/" + topicClient + "sw1";
-	topSw2_Out = topicMain + "/out/" + topicClient + "sw2";
+	topSw_In = topicMain + "/in/" + topicClient + "sw";
+	topSw_Out = topicMain + "/out/" + topicClient + "sw";
 
 	// * Serial start *
-	sTopSw1_In = topicMain + "/in/" + topicClient + "ssw1";
-	sTopSw2_In = topicMain + "/in/" + topicClient + "ssw2";
-	sTopSw3_In = topicMain + "/in/" + topicClient + "ssw3";
-	sTopSw4_In = topicMain + "/in/" + topicClient + "ssw4";
-	sTopSw5_In = topicMain + "/in/" + topicClient + "ssw5";
-
-	sTopSw1_Out = topicMain + "/out/" + topicClient + "ssw1";
-	sTopSw2_Out = topicMain + "/out/" + topicClient + "ssw2";
-	sTopSw3_Out = topicMain + "/out/" + topicClient + "ssw3";
-	sTopSw4_Out = topicMain + "/out/" + topicClient + "ssw4";
-	sTopSw5_Out = topicMain + "/out/" + topicClient + "ssw5";
+	sTopSw_In = topicMain + "/in/" + topicClient + "ssw1";
+	sTopSw_Out = topicMain + "/out/" + topicClient + "ssw";
 	// * Serial end *
 
 	topTemp1_Out = topicMain + "/out/" + topicClient + "Temperature";
@@ -280,82 +349,32 @@ void onMessageReceived(String topic, String message) {
 	DEBUG4_PRINT(message);
 	DEBUG4_PRINTLN("\"");
 
-	if (topic.equals(topSw1_In)) {
-		if (message.equals("ON")) {
-			ActStates.setSw1(HIGH);
-			digitalWrite(AppSettings.sw1, ActStates.sw1);
-			//digitalWrite(AppSettings.sw1, swState1);
-		} else if (message.equals("OFF")) {
-			ActStates.setSw1(LOW);
-			digitalWrite(AppSettings.sw1, ActStates.sw1);
-			//digitalWrite(AppSettings.sw1, swState1);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	} else if (topic.equals(topSw2_In)) {
-		if (message.equals("ON")) {
-			ActStates.setSw2(HIGH);
-			//digitalWrite(AppSettings.sw2, swState2);
-			digitalWrite(AppSettings.sw2, ActStates.sw2);
-		} else if (message.equals("OFF")) {
-			ActStates.setSw2(LOW);
-			//digitalWrite(AppSettings.sw2, swState2);
-			digitalWrite(AppSettings.sw2, ActStates.sw2);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
+	// SW
+	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
+		if (topic.equals((topSw_In+String(i+1)))) {
+			if (message.equals("ON")) {
+				turnSw(i, HIGH);
+			} else if (message.equals("OFF")) {
+				turnSw(i, LOW);
+			} else
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (topSw_In+String(i+1)).c_str());
+		}
 	}
-// *** Serial block ***
-	else if (topic.equals(sTopSw1_In)) {
-		if (message.equals("ON")) {
-			ActStates.setSsw1(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_1);
-		} else if (message.equals("OFF")) {
-			ActStates.setSsw1(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_1);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
+
+	// *** Serial block ***
+
+	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
+		if (topic.equals((sTopSw_In+String(i+1)))) {
+			if (message.equals("ON")) {
+				turnSsw(i, HIGH);
+			} else if (message.equals("OFF")) {
+				turnSsw(i, LOW);
+			} else
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (sTopSw_In+String(i+1)).c_str());
+		}
 	}
-	else if (topic.equals(sTopSw2_In)) {
-		if (message.equals("ON")) {
-			ActStates.setSsw2(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_2);
-		} else if (message.equals("OFF")) {
-			ActStates.setSsw2(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_2);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	}
-	else if (topic.equals(sTopSw3_In)) {
-		if (message.equals("ON")) {
-			ActStates.setSsw3(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_3);
-		} else if (message.equals("OFF")) {
-			ActStates.setSsw3(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_3);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	}
-	else if (topic.equals(sTopSw4_In)) {
-		if (message.equals("ON")) {
-			ActStates.setSsw4(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_4);
-		} else if (message.equals("OFF")) {
-			ActStates.setSsw4(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_4);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	}
-	else if (topic.equals(sTopSw5_In)) {
-		if (message.equals("ON")) {
-			ActStates.setSsw5(HIGH);
-			protocol.sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, ObjectId::SWITCH_5);
-		} else if (message.equals("OFF")) {
-			ActStates.setSsw5(LOW);
-			protocol.sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, ObjectId::SWITCH_5);
-		} else
-			DEBUG4_PRINTLN("Topic matched, message is UNKNOWN");
-	}
-// *** Serial block end ***
-	else if (topic.equals(topCfg_In)) {
+	// *** Serial block end ***
+	if (topic.equals(topCfg_In)) {
 
 		int msgLen = message.length() + 1;
 		DEBUG4_PRINT("msgLen = ");
@@ -433,18 +452,6 @@ void onMessageReceived(String topic, String message) {
 			AppSettings.save();
 			mqtt.publish(topCfg_Out, "Settings saved.");
 		}
-		else if (cmd.equals("set_printf")) {
-			String strPrintf = "dummy";//AppSettings.printf();
-			DEBUG4_PRINTLN(strPrintf);
-			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrintf.length());
-			mqtt.publish(topCfg_Out, strPrintf);
-		}
-		else if (cmd.equals("set_print")) {
-			String strPrint = "dummy";//AppSettings.print();
-			DEBUG4_PRINTLN(strPrint);
-			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrint.length());
-			mqtt.publish(topCfg_Out, strPrint);
-		}
 		else if (cmd.equals("act_print")) {
 			String strPrint = ActStates.print();
 			DEBUG4_PRINTLN(strPrint);
@@ -475,7 +482,7 @@ void onMessageReceived(String topic, String message) {
 			DEBUG4_PRINTLN(strHelp);
 			mqtt.publish(topCfg_Out, strHelp);
 		}
-		*/
+		 */
 		else
 			DEBUG4_PRINTLN("Topic matched, command is UNKNOWN");
 	}
@@ -514,41 +521,17 @@ void startMqttClient() {
 
 void publishSerialSw() {
 
-	if (ActStates.ssw1)
-		mqtt.publish(sTopSw1_Out, "ON");
-	else
-		mqtt.publish(sTopSw1_Out, "OFF");
+	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+		if (ActStates.ssw[i])
+			mqtt.publish(sTopSw_Out+String(i+1), "ON");
+		else
+			mqtt.publish(sTopSw_Out+String(i+1), "OFF");
+	}
 
-	if (ActStates.ssw2)
-		mqtt.publish(sTopSw2_Out, "ON");
-	else
-		mqtt.publish(sTopSw2_Out, "OFF");
-
-	if (ActStates.ssw3)
-		mqtt.publish(sTopSw3_Out, "ON");
-	else
-		mqtt.publish(sTopSw3_Out, "OFF");
-
-	if (ActStates.ssw4)
-		mqtt.publish(sTopSw4_Out, "ON");
-	else
-		mqtt.publish(sTopSw4_Out, "OFF");
-
-	if (ActStates.ssw5)
-		mqtt.publish(sTopSw5_Out, "ON");
-	else
-		mqtt.publish(sTopSw5_Out, "OFF");
-
-	DEBUG4_PRINT("swState1 is ");
-	DEBUG4_PRINTLN(ActStates.ssw1);
-	DEBUG4_PRINT("swState2 is ");
-	DEBUG4_PRINTLN(ActStates.ssw2);
-	DEBUG4_PRINT("swState3 is ");
-	DEBUG4_PRINTLN(ActStates.ssw3);
-	DEBUG4_PRINT("swState4 is ");
-	DEBUG4_PRINTLN(ActStates.ssw4);
-	DEBUG4_PRINT("swState5 is ");
-	DEBUG4_PRINTLN(ActStates.ssw5);
+	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+		DEBUG4_PRINTF("swState%d is ", i);
+		DEBUG4_PRINTLN(ActStates.ssw[i]);
+	}
 }
 
 void publishSerial() {
@@ -833,8 +816,19 @@ void readSwitches(SerialMessage payload) {
 	bool state;
 	uint8_t sw = payload.sw;
 
+
+	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+		state = ((sw & (int)powf(2, i)) == 1)?HIGH:LOW;
+
+		DEBUG1_PRINTF("CHECK: readSwitches %d, state = ", i);
+		DEBUG1_PRINTLN(state);
+
+		if (state != ActStates.getSsw(i))
+			ActStates.setSsw(i, state);
+	}
+	/* !!! Требует тщательной проверки !!!
 	state =  ((sw & 1) == 1)?HIGH:LOW;
-	if (state != ActStates.ssw1)
+	if (state != ActStates.getSsw().ssw1)
 		ActStates.setSsw1(state);
 
 	state = (((sw & 2)  >> 1) == 1)?HIGH:LOW;
@@ -852,7 +846,7 @@ void readSwitches(SerialMessage payload) {
 	state = (((sw & 16) >> 4) == 1)?HIGH:LOW;
 	if (state != ActStates.ssw5)
 		ActStates.setSsw5(state);
-
+	 */
 }
 
 void processSerialMessage() {
@@ -874,7 +868,7 @@ void processSerialMessage() {
     DEBUG4_PRINT(" id=");
     DEBUG4_PRINTLN(objId);
 	 */
-
+	/*
 	if (objType == ObjectType::SWITCH) {
 		if ((objId == ObjectId::SWITCH_1) || (objId == ObjectId::ALL)) {
 			if (cmd == SerialCommand::SET_LOW) {
@@ -884,6 +878,7 @@ void processSerialMessage() {
 			}
 		}
 	}
+	 */
 
 	if (cmd == SerialCommand::RETURN) {
 		SerialMessage pl = protocol.getPayload();
@@ -1075,68 +1070,6 @@ void reconnectOk() {
 
 }
 
-/*
-void reconnectOk() {
-
-	DEBUG4_PRINTLN("I'm RE_CONNECTED");
-
-	wifiCheckCount = 0;
-
-	DEBUG4_PRINT("MQTT.state=");
-	DEBUG4_PRINTLN(mqtt.getConnectionState());
-
-	DEBUG4_PRINTLN("Client name =\"" + mqttClientName + "\"");
-
-	startMqttClient();
-
-	publishSwitches();
-
-	DEBUG4_PRINT("dhtTimer.. ");
-	timerDHT.initializeMs(60 * 1000, readDHT).start();
-	system_soft_wdt_stop();
-	os_delay_us(1000000);
-	DEBUG4_PRINTLN("rearmed");
-	os_delay_us(1000000);
-
-	DEBUG4_PRINT("bmpTimer.. ");
-	timerBMP.initializeMs(60 * 1000, readBarometer).start();
-	os_delay_us(1000000);
-	system_soft_wdt_restart();
-	DEBUG4_PRINTLN("rearmed");
-	os_delay_us(100000);
-	DEBUG4_PRINT("mqttTimer.. ");
-	timerMQTT.initializeMs(30 * 1000, mqtt_loop).start();
-	system_soft_wdt_stop();
-	DEBUG4_PRINTLN("rearmed");
-	os_delay_us(1000000);
-
-	DEBUG4_PRINT("wifiTimer.. ");
-	timerWIFI.initializeMs(300 * 1000, checkWifi).start();
-
-	DEBUG4_PRINTLN("rearmed");
-	system_soft_wdt_restart();
-
-}*/
-
-/*void connectFail() {
-	DEBUG4_PRINTLN("I'm NOT CONNECTED. Need help :(");
-	bool state1 = LOW;
-	for (int i = 0; i < 30; i++) {
-		//digitalWrite(AppSettings.sw1, swState1);
-		digitalWrite(AppSettings.sw1, state1);
-		state1 = !state1;
-		system_soft_wdt_stop();
-		delay(500);
-		system_soft_wdt_restart();
-	}
-
-	system_restart();
-
-	// .. some you code for device configuration ..
-}*/
-
-
-
 // Will be called when WiFi station timeout was reached
 void connectFail() {
 	DEBUG1_PRINTLN("NOT CONNECTED!");
@@ -1180,20 +1113,19 @@ void readDHT(void) {
 
 void publishSwitches() {
 
-	if (ActStates.sw1)
-		mqtt.publish(topSw1_Out, "ON");
-	else
-		mqtt.publish(topSw1_Out, "OFF");
+	for (byte i = 0; i < ActStates.sw_cnt; i++) {
+		if (ActStates.getSw(i))
+			mqtt.publish(topSw_Out + String(i+1), "ON");
+		else
+			mqtt.publish(topSw_Out + String(i+1), "OFF");
+	}
 
-	if (ActStates.sw2)
-		mqtt.publish(topSw2_Out, "ON");
-	else
-		mqtt.publish(topSw2_Out, "OFF");
 
-	DEBUG4_PRINT("swState1 is ");
-	DEBUG4_PRINTLN(ActStates.sw1);
-	DEBUG4_PRINT("swState2 is ");
-	DEBUG4_PRINTLN(ActStates.sw2);
+	for (byte i = 0; i < ActStates.sw_cnt; i++) {
+		DEBUG4_PRINTF("swState%d is ",i);
+		DEBUG4_PRINTLN(ActStates.getSw(i));
+	}
+
 
 }
 
@@ -1656,6 +1588,7 @@ String ShowInfo() {
 	return result;
 }
 
+
 void configureNetwork() {
 	DEBUG4_PRINTLN("There is no config...");
 	DEBUG4_PRINTLN("Please write code to make config for firmware");
@@ -1704,7 +1637,6 @@ void configureNetwork() {
 }
 
 
-
 void init() {
 	//ets_wdt_enable();
 	//ets_wdt_disable();
@@ -1719,22 +1651,27 @@ void init() {
 
 	INFO_PRINT("Firmware started. Version: ");
 	INFO_PRINTLN(AppSettings.version);
+
 	PRINT_MEM();
 	//Serial.print("StartMem: ");
 	//Serial.println(system_get_free_heap_size());
 
 	if (AppSettings.exist()) {
+		ActStates.init();
+
 		//AppSettings.load();
 		//DEBUG4_PRINTLN(AppSettings.print());
 		//DEBUG1_PRINTLN("Config loaded...");
-		//DEBUG4_PRINTLN(AppSettings.printf());
+		//AppSettings.print();
+		//AppSettings.load_debug();
 
 		AppSettings.loadWifiList();
 
-		PRINT_MEM();
+		//PRINT_MEM();
 
 		for (int i=0; i < AppSettings.wifi_cnt; i++)
 			DEBUG4_PRINTLN(AppSettings.wifiList[i]);
+
 
 		WifiAccessPoint.enable(false);
 		WifiStation.enable(true);
@@ -1743,17 +1680,16 @@ void init() {
 		//DEBUG4_PRINT("result of AppSettings.loadNetwork = ");
 		//DEBUG4_PRINTLN(result);
 
-		PRINT_MEM();
+		//PRINT_MEM();
 		//Serial.print("!-- Mem after loadNetwork: ");
 		//Serial.println(system_get_free_heap_size());
 		//if (result==0) {
 		if (!(AppSettings.ssid.equals("")) && (AppSettings.ssid != null)) {
 			WifiStation.config(AppSettings.ssid, AppSettings.password);
 			WifiStation.waitConnection(connectOk, 30, connectFail); // We recommend 20+ seconds for connection timeout at start
-			DEBUG1_PRINT("ASet.ssid = ");
-			DEBUG1_PRINTLN(AppSettings.ssid);
-			DEBUG1_PRINT("ASet.pass = ");
-			DEBUG1_PRINTLN(AppSettings.password);
+			DEBUG1_PRINTF("ASet.ssid = %s  ", AppSettings.ssid.c_str());
+			DEBUG1_PRINTF("pass = %s", AppSettings.password.c_str());
+			DEBUG1_PRINTLN();
 			//delay(1000);
 
 			PRINT_MEM();
@@ -1763,20 +1699,46 @@ void init() {
 			System.onReady(ready);
 		}
 
-		dht.begin();
-		ds.begin(); // It's required for one-wire initialization!
+		if (AppSettings.is_dht)
+			dht.begin();
 
-		// I2C init
+		if (AppSettings.is_ds)
+			ds.begin(); // It's required for one-wire initialization!
 
-		//Wire.pins(SCL_PIN, SDA_PIN);
-		Wire.pins(AppSettings.scl, AppSettings.sda);
-		Wire.begin();
+		if (AppSettings.is_bmp) { // I2C init
+			//Wire.pins(SCL_PIN, SDA_PIN);
+			Wire.pins(AppSettings.scl, AppSettings.sda);
+			Wire.begin();
+		}
 
-		pinMode(AppSettings.sw1, OUTPUT);
-		pinMode(AppSettings.sw2, OUTPUT);
+		PRINT_MEM();
 
-		digitalWrite(AppSettings.sw1, ActStates.sw1);
-		digitalWrite(AppSettings.sw2, ActStates.sw2);
+		if (AppSettings.is_insw) {
+			byte in_cnt = AppSettings.in_cnt;
+			for (byte i = 0; i < in_cnt; i++) {
+				pinMode(AppSettings.in[i], INPUT);
+			}
+
+			if (in_cnt >= 1)
+				attachInterrupt(AppSettings.in[0], interruptHandlerInSw1, HIGH);
+			if (in_cnt >= 2)
+				attachInterrupt(AppSettings.in[1], interruptHandlerInSw2, HIGH);
+			if (in_cnt >= 3)
+				attachInterrupt(AppSettings.in[2], interruptHandlerInSw3, HIGH);
+			if (in_cnt >= 4)
+				attachInterrupt(AppSettings.in[3], interruptHandlerInSw4, HIGH);
+			if (in_cnt >= 5)
+				attachInterrupt(AppSettings.in[4], interruptHandlerInSw5, HIGH);
+
+		}
+
+		//PRINT_MEM();
+
+		initSw();
+
+		PRINT_MEM();
+
+
 
 		//DEBUG1_PRINTLN("Program started");
 
@@ -1790,5 +1752,5 @@ void init() {
 	//Serial.print("New CPU frequency is:");
 	//Serial.println((int)System.getCpuFrequency());
 
-	DEBUG4_PRINTLN("_init.end");
+	//DEBUG4_PRINTLN("_init.end");
 }
