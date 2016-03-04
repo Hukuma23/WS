@@ -8,15 +8,9 @@
 #include <Module.h>
 
 // Sensor
-Sensor::Sensor() {
-	timer_shift = DEFAULT_SHIFT;
-	timer_interval = DEFAULT_INTERVAL;
-}
+Sensor::Sensor() : timer_shift(DEFAULT_SHIFT), timer_interval(DEFAULT_INTERVAL) {}
 
-Sensor::Sensor(unsigned int shift, unsigned int interval) {
-	timer_shift = shift;
-	timer_interval = interval;
-}
+Sensor::Sensor(unsigned int shift, unsigned int interval) : timer_shift(shift), timer_interval(interval) {}
 
 void Sensor::start() {
 	timer.initializeMs(timer_interval, TimerDelegate(&Sensor::compute,this)).start();
@@ -90,7 +84,25 @@ float SensorDHT::getHumidity() {
 	return humidity;
 }
 
+void SensorDHT::publish(MQTT* &mqtt) {
+	DEBUG4_PRINTLN("_publishDHT");
 
+	bool result;
+
+	if (temperature != undefined) {
+		result = mqtt->publish("dhtTemperature", OUT, String(temperature));
+
+		if (result)
+			temperature = undefined;
+	}
+
+	if (humidity != undefined) {
+		result = mqtt->publish("dhtHumidity", OUT, String(humidity));
+
+		if (result)
+			humidity = undefined;
+	}
+}
 
 // SensorBMP
 SensorBMP::~SensorBMP() {}
@@ -154,7 +166,25 @@ long SensorBMP::getPressure() {
 	return pressure;
 }
 
+void SensorBMP::publish(MQTT* &mqtt) {
+	DEBUG4_PRINTLN("_publishBMP");
 
+	bool result;
+
+	if (temperature != undefined) {
+		result = mqtt->publish("bmpTemperature", OUT, String(temperature));
+
+		if (result)
+			temperature = undefined;
+	}
+
+	if (pressure != undefined) {
+		result = mqtt->publish("bmpPressure", OUT, String(pressure));
+
+		if (result)
+			pressure = undefined;
+	}
+}
 
 // SensorDS
 SensorDS::~SensorDS() {
@@ -200,6 +230,20 @@ void SensorDS::compute() {
 
 	system_soft_wdt_restart();
 	return;
+}
+
+void SensorDS::publish(MQTT* &mqtt) {
+	DEBUG4_PRINTLN("_publishDS");
+
+	bool result;
+
+	for (byte i = 0; i < count; i++) {
+		if (temperature[i] != undefined) {
+			result = mqtt->publish("dsTemperature", i, OUT, String(temperature[i]));
+			if (result)
+				temperature[i] = undefined;
+		}
+	}
 }
 
 float SensorDS::readDCByAddr(byte addr[]) {
