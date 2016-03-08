@@ -8,12 +8,12 @@
 #include <Module.h>
 
 // Sensor
-Sensor::Sensor() : timer_shift(DEFAULT_SHIFT), timer_interval(DEFAULT_INTERVAL) {}
+Sensor::Sensor() : timer_shift(DEFAULT_SHIFT), timer_interval(DEFAULT_INTERVAL), mqtt(NULL) {}
 
-Sensor::Sensor(unsigned int shift, unsigned int interval) : timer_shift(shift), timer_interval(interval) {}
+Sensor::Sensor(unsigned int shift, unsigned int interval, MQTT* &mqtt) : timer_shift(shift), timer_interval(interval), mqtt(mqtt) {}
 
 void Sensor::start() {
-	timer.initializeMs(timer_interval, TimerDelegate(&Sensor::compute,this)).start();
+	timer.initializeMs(timer_interval, TimerDelegate(&Sensor::loop,this)).start();
 }
 
 void Sensor::setShift(unsigned int shift) {
@@ -35,6 +35,21 @@ void Sensor::stopTimer() {
 	timer.stop();
 }
 
+void Sensor::setMqtt(MQTT* &mqtt) {
+	this->mqtt = mqtt;
+}
+
+void Sensor::loop() {
+	if (needCompute) {
+		compute();
+		needCompute = !needCompute;
+	}
+	else {
+		publish();
+		needCompute = !needCompute;
+	}
+}
+
 
 // SensorDHT
 SensorDHT::~SensorDHT() {
@@ -50,7 +65,7 @@ SensorDHT::SensorDHT(byte pin, byte dhtType) : Sensor(){
 	init(pin, dhtType);
 };
 
-SensorDHT::SensorDHT(unsigned int shift, unsigned int interval, byte pin, byte dhtType) : Sensor(shift, interval) {
+SensorDHT::SensorDHT(byte pin, byte dhtType, MQTT* &mqtt, unsigned int shift, unsigned int interval) : Sensor(shift, interval, mqtt) {
 	init(pin, dhtType);
 };
 
@@ -84,8 +99,12 @@ float SensorDHT::getHumidity() {
 	return humidity;
 }
 
-void SensorDHT::publish(MQTT* &mqtt) {
+void SensorDHT::publish() {
 	DEBUG4_PRINTLN("_publishDHT");
+
+	if (mqtt == NULL) {
+		return;
+	}
 
 	bool result;
 
@@ -117,7 +136,7 @@ SensorBMP::SensorBMP(byte scl, byte sda) : Sensor(){
 
 };
 
-SensorBMP::SensorBMP(unsigned int shift, unsigned int interval, byte scl, byte sda) : Sensor(shift, interval) {
+SensorBMP::SensorBMP(byte scl, byte sda, MQTT* &mqtt, unsigned int shift, unsigned int interval) : Sensor(shift, interval, mqtt) {
 	init(scl, sda);
 };
 
@@ -166,8 +185,12 @@ long SensorBMP::getPressure() {
 	return pressure;
 }
 
-void SensorBMP::publish(MQTT* &mqtt) {
+void SensorBMP::publish() {
 	DEBUG4_PRINTLN("_publishBMP");
+
+	if (mqtt == NULL) {
+		return;
+	}
 
 	bool result;
 
@@ -203,7 +226,7 @@ SensorDS::SensorDS(byte pin, byte count) : Sensor(){
 	init(pin, count);
 };
 
-SensorDS::SensorDS(unsigned int shift, unsigned int interval, byte pin, byte count) : Sensor(shift, interval) {
+SensorDS::SensorDS(byte pin, byte count, MQTT* &matt, unsigned int shift, unsigned int interval) : Sensor(shift, interval, mqtt) {
 	init(pin, count);
 };
 
@@ -232,8 +255,11 @@ void SensorDS::compute() {
 	return;
 }
 
-void SensorDS::publish(MQTT* &mqtt) {
+void SensorDS::publish() {
 	DEBUG4_PRINTLN("_publishDS");
+	if (mqtt == NULL) {
+		return;
+	}
 
 	bool result;
 

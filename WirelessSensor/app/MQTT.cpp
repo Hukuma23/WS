@@ -89,7 +89,7 @@ byte MQTT::connect() {
 	else if (isFirstTime) {
 		publish("start", OUT, "1");
 		publish("log", OUT, nameClient);
-		DEBUG4_PRINTLN("publish mqtt START!");
+		DEBUG4_PRINTLN("published mqtt START!");
 		isFirstTime = false;
 	}
 

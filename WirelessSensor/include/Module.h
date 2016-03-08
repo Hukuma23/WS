@@ -28,10 +28,13 @@ protected:
 	Timer timer;
 	unsigned int timer_shift;
 	unsigned int timer_interval;
+	bool needCompute = true;
+
+	MQTT* mqtt;
 
 	void start();
 	Sensor();
-	Sensor(unsigned int shift, unsigned int interval);
+	Sensor(unsigned int shift, unsigned int interval, MQTT* &mqtt);
 
 public:
 
@@ -41,11 +44,16 @@ public:
 	void setInterval(unsigned int interval);
 	void setTimer(unsigned int shift, unsigned int interval);
 
-	virtual void publish(MQTT mqtt);
+
+	virtual void loop();
+	virtual void publish();
 	virtual void compute();
+
 
 	void startTimer();
 	void stopTimer();
+
+	void setMqtt(MQTT* &mqtt);
 };
 
 class SensorDHT:Sensor {
@@ -58,10 +66,10 @@ private:
 
 public:
 	SensorDHT(byte pin, byte dhtType);
-	SensorDHT(unsigned int shift, unsigned int interval, byte pin, byte dhtType);
+	SensorDHT(byte pin, byte dhtType,  MQTT* &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorDHT();
 	void compute();
-	void publish(MQTT* &mqtt);
+	void publish();
 	float getTemperature();
 	float getHumidity();
 };
@@ -78,10 +86,10 @@ private:
 
 public:
 	SensorBMP(byte pin, byte count);
-	SensorBMP(unsigned int shift, unsigned int interval, byte pin, byte count);
+	SensorBMP(byte pin, byte count, MQTT* &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorBMP();
 	void compute();
-	void publish(MQTT* &mqtt);
+	void publish();
 	float getTemperature();
 	long getPressure();
 };
@@ -99,10 +107,10 @@ private:
 
 public:
 	SensorDS(byte pin, byte count);
-	SensorDS(unsigned int shift, unsigned int interval, byte pin, byte count);
+	SensorDS(byte pin, byte count, MQTT* &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorDS();
 	void compute();
-	void publish(MQTT* &mqtt);
+	void publish();
 	byte getCount();
 	float getTemperature(byte num);
 };
