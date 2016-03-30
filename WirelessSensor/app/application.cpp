@@ -156,17 +156,25 @@ void IRAM_ATTR turnSw(byte num, bool state) {
 		DEBUG4_PRINTF(" set sw[%d] to GREEN;  ", num);
 		digitalWrite(AppSettings.sw[num], HIGH);
 		AppSettings.led.green(num);
+		//mqtt.publish(sTopSw_Out+String(num+1), "ON");
 	}
 	else {
 		DEBUG4_PRINTF(" set sw[%d] to RED;  ", num);
 		digitalWrite(AppSettings.sw[num], LOW);
 		AppSettings.led.red(num);
+		//mqtt.publish(sTopSw_Out+String(num+1), "OFF");
 	}
 }
 
 void initSw() {
+
+
 	for (byte num = 0; num < ActStates.sw_cnt; num++) {
+		DEBUG4_PRINTF("initSW. pin=%d ", AppSettings.sw[num]);
+
+		pinMode(AppSettings.sw[num], OUTPUT);
 		turnSw(num, ActStates.sw[num]);
+		DEBUG4_PRINTLN("  done!");
 	}
 }
 
@@ -194,7 +202,7 @@ void IRAM_ATTR interruptHandlerInSw(byte num) {
 		pushCount[num]++;
 	}
 
-	if (((millis() - pushTime[num]) < AppSettings.debounce_time) && (pushCount[num] > 2) && (!pushSwitched[num])) {
+	if (((millis() - pushTime[num]) < AppSettings.debounce_time) && (pushCount[num] > 4) && (!pushSwitched[num])) {
 
 		pushSwitched[num] = true;
 		turnSw(num, !ActStates.sw[num]);
