@@ -1545,7 +1545,7 @@ void OtaUpdateAll() {
 		otaUpdater->addItem(RBOOT_SPIFFS_0, AppSettings.spiffs);
 		//otaUpdater->addItem(RBOOT_SPIFFS_0, SPIFFS_URL);
 	} else {
-		otaUpdater->addItem(RBOOT_SPIFFS_0, AppSettings.spiffs);
+		otaUpdater->addItem(RBOOT_SPIFFS_1, AppSettings.spiffs);
 		//otaUpdater->addItem(RBOOT_SPIFFS_1, SPIFFS_URL);
 	}
 #endif
