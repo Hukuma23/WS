@@ -13,7 +13,7 @@
 
 //#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
 #define APP_SETTINGS_FILE "settings.conf" // There is no leading point for security reasons :)
-
+#define CONF_URL "http://10.4.1.59:8080/Blink/settings.conf"
 struct ApplicationSettingsStorage
 {
 	uint32_t serial_speed = SERIAL_BAUD_RATE;
@@ -59,6 +59,12 @@ struct ApplicationSettingsStorage
 	byte* in;
 	byte in_cnt=0;
 	LED led;
+
+	// HTTP
+	HttpClient httpClient;
+	String urlFW[2] = {"http://10.0.1.22:8080/Blink/settings.conf", "http://10.4.1.59:8080/Blink/settings.conf"};
+	uint8_t urlIndex = 0;
+
 
 	// MODULES
 	bool is_wifi = false;
@@ -242,101 +248,109 @@ struct ApplicationSettingsStorage
 		return -1;
 	}
 
+	void load(char* jsonString) {
+		DynamicJsonBuffer jsonBuffer;
+		JsonObject& root = jsonBuffer.parseObject(jsonString);
+
+		JsonObject& config = root["config"];
+		serial_speed = config["serial_speed"];
+		version = config["version"].toString();
+
+		JsonObject& mqtt = config["mqtt_topic"];
+		main_topic = mqtt["main_topic"].toString();
+		client_topic = mqtt["client_topic"].toString();
+
+		JsonObject& pins = config["pins"];
+		sda = pins["sda"];
+		scl = pins["scl"];
+		dht = pins["dht"];
+		ds = pins["ds"];
+
+		if (pins.containsKey("sw")) {
+			JsonObject& jSw = pins["sw"];
+			this->sw_cnt = (byte)jSw["cnt"];
+			sw = new byte[sw_cnt];
+			for (byte i = 0; i < sw_cnt; i++ ) {
+				if (jSw.containsKey(String(i+1).c_str()))
+					this->sw[i] = jSw[String(i+1)];
+			}
+		}
+
+		if (pins.containsKey("ssw")) {
+			JsonObject& jSsw = pins["ssw"];
+			this->sw_cnt = (byte)jSsw["cnt"];
+			ssw = new byte[ssw_cnt];
+			for (byte i = 0; i < ssw_cnt; i++ ) {
+				if (jSsw.containsKey(String(i+1).c_str()))
+					this->ssw[i] = jSsw[String(i+1)];
+			}
+		}
+
+		if (pins.containsKey("led")) {
+			JsonObject& jLed = pins["led"];
+			this->led.setCount((byte)jLed["cnt"]);
+			this->led.setPin((byte)jLed["pin"]);
+		}
+
+		if (pins.containsKey("in")) {
+			JsonObject& jIn = pins["in"];
+			this->in_cnt = (byte)jIn["cnt"];
+
+			if (in_cnt > 0) {
+				in = new byte[in_cnt];
+				for (byte i = 0; i < in_cnt; i++ ) {
+					if (jIn.containsKey(String(i+1).c_str()))
+						this->in[i] = jIn[String(i+1)];
+				}
+			}
+		}
+
+		JsonObject& modules = config["modules"];
+		is_dht = modules["is_dht"];
+		is_bmp = modules["is_bmp"];
+		is_ds = modules["is_ds"];
+		is_wifi = modules["is_wifi"];
+		is_serial = modules["is_serial"];
+		is_insw = modules["is_insw"];
+
+		JsonObject& timers = config["timers"];
+		shift_mqtt = timers["shift_mqtt"];
+		shift_dht = timers["shift_dht"];
+		shift_bmp = timers["shift_bmp"];
+		shift_ds = timers["shift_ds"];
+		shift_wifi = timers["shift_wifi"];
+		shift_collector = timers["shift_collector"];
+		shift_receiver = timers["shift_receiver"];
+
+		interval_mqtt = timers["interval_mqtt"];
+		interval_dht = timers["interval_dht"];
+		interval_bmp = timers["interval_bmp"];
+		interval_ds = timers["interval_ds"];
+		interval_wifi = timers["interval_wifi"];
+		interval_listener = timers["interval_listener"];
+		interval_collector = timers["interval_collector"];
+		interval_receiver = timers["interval_receiver"];
+		debounce_time = timers["debounce_time"];
+
+		delete[] jsonString;
+	}
 
 
 	void load() {
-		DynamicJsonBuffer jsonBuffer;
-		if (exist())
-		{
+		if (exist()) {
+
 			int size = fileGetSize(APP_SETTINGS_FILE);
 			char* jsonString = new char[size + 1];
 			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
-			JsonObject& root = jsonBuffer.parseObject(jsonString);
 
-			JsonObject& config = root["config"];
-			serial_speed = config["serial_speed"];
-			version = config["version"].toString();
-
-			JsonObject& mqtt = config["mqtt_topic"];
-			main_topic = mqtt["main_topic"].toString();
-			client_topic = mqtt["client_topic"].toString();
-
-			JsonObject& pins = config["pins"];
-			sda = pins["sda"];
-			scl = pins["scl"];
-			dht = pins["dht"];
-			ds = pins["ds"];
-
-			if (pins.containsKey("sw")) {
-				JsonObject& jSw = pins["sw"];
-				this->sw_cnt = (byte)jSw["cnt"];
-				sw = new byte[sw_cnt];
-				for (byte i = 0; i < sw_cnt; i++ ) {
-					if (jSw.containsKey(String(i+1).c_str()))
-						this->sw[i] = jSw[String(i+1)];
-				}
-			}
-
-			if (pins.containsKey("ssw")) {
-				JsonObject& jSsw = pins["ssw"];
-				this->sw_cnt = (byte)jSsw["cnt"];
-				ssw = new byte[ssw_cnt];
-				for (byte i = 0; i < ssw_cnt; i++ ) {
-					if (jSsw.containsKey(String(i+1).c_str()))
-						this->ssw[i] = jSsw[String(i+1)];
-				}
-			}
-
-			if (pins.containsKey("led")) {
-				JsonObject& jLed = pins["led"];
-				this->led.setCount((byte)jLed["cnt"]);
-				this->led.setPin((byte)jLed["pin"]);
-			}
-
-			if (pins.containsKey("in")) {
-				JsonObject& jIn = pins["in"];
-				this->in_cnt = (byte)jIn["cnt"];
-
-				if (in_cnt > 0) {
-					in = new byte[in_cnt];
-					for (byte i = 0; i < in_cnt; i++ ) {
-						if (jIn.containsKey(String(i+1).c_str()))
-							this->in[i] = jIn[String(i+1)];
-					}
-				}
-			}
-
-			JsonObject& modules = config["modules"];
-			is_dht = modules["is_dht"];
-			is_bmp = modules["is_bmp"];
-			is_ds = modules["is_ds"];
-			is_wifi = modules["is_wifi"];
-			is_serial = modules["is_serial"];
-			is_insw = modules["is_insw"];
-
-			JsonObject& timers = config["timers"];
-			shift_mqtt = timers["shift_mqtt"];
-			shift_dht = timers["shift_dht"];
-			shift_bmp = timers["shift_bmp"];
-			shift_ds = timers["shift_ds"];
-			shift_wifi = timers["shift_wifi"];
-			shift_collector = timers["shift_collector"];
-			shift_receiver = timers["shift_receiver"];
-
-			interval_mqtt = timers["interval_mqtt"];
-			interval_dht = timers["interval_dht"];
-			interval_bmp = timers["interval_bmp"];
-			interval_ds = timers["interval_ds"];
-			interval_wifi = timers["interval_wifi"];
-			interval_listener = timers["interval_listener"];
-			interval_collector = timers["interval_collector"];
-			interval_receiver = timers["interval_receiver"];
-			debounce_time = timers["debounce_time"];
-
+			load(jsonString);
 			delete[] jsonString;
 		}
 	}
-/*
+
+
+
+	/*
 	void load_debug() {
 		DEBUG4_PRINTLN("*** LoadDebug.started ***");
 		DynamicJsonBuffer jsonBuffer;
@@ -400,7 +414,7 @@ struct ApplicationSettingsStorage
 			delete[] jsonString;
 		}
 	}
-*/
+	 */
 	void saveLastWifi() {
 
 		DEBUG1_PRINT("*SLWF");
