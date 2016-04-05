@@ -37,7 +37,7 @@ struct ActualStateStorage {
 
 	ActualStateStorage() {
 		//Initialization of rBoot OTA
-		rBootInit();
+		AppSettings.rBootInit();
 		//sw1 = LOW;
 		//sw2 = LOW;
 		load();
@@ -136,28 +136,6 @@ struct ActualStateStorage {
 	}
 
 	bool exist() { return fileExist(ACT_STATE_FILE); }
-
-	void rBootInit() {
-		// mount spiffs
-		int slot = rboot_get_current_rom();
-#ifndef DISABLE_SPIFFS
-		if (slot == 0) {
-#ifdef RBOOT_SPIFFS_0
-			spiffs_mount_manual(RBOOT_SPIFFS_0 + 0x40200000, SPIFF_SIZE);
-#else
-			spiffs_mount_manual(0x40300000, SPIFF_SIZE);
-#endif
-		} else {
-#ifdef RBOOT_SPIFFS_1
-			//DEBUG4_PRINTF2("trying to mount spiffs at %x, length %d", RBOOT_SPIFFS_1 + 0x40200000, SPIFF_SIZE);
-#else
-			spiffs_mount_manual(0x40500000, SPIFF_SIZE);
-#endif
-		}
-#else
-#endif
-
-	}
 
 	String printf() {
 		String result;
