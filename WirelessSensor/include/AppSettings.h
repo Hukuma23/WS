@@ -13,7 +13,9 @@
 
 //#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
 #define APP_SETTINGS_FILE "settings.conf" // There is no leading point for security reasons :)
-#define CONF_URL "http://10.4.1.59:8080/Blink/settings.conf"
+#define HTTP_TRY_PERIOD 5000
+
+
 struct ApplicationSettingsStorage
 {
 	uint32_t serial_speed = SERIAL_BAUD_RATE;
@@ -33,13 +35,13 @@ struct ApplicationSettingsStorage
 
 	// OTA
 	String rom0;
-	String rom1;
+	//String rom1;
 	String spiffs;
 
 	// MQTT
 	String main_topic;
 	String client_topic;
-	IPAddress broker_ip;
+	String broker_ip;
 	int broker_port;
 
 	// PINS
@@ -64,6 +66,7 @@ struct ApplicationSettingsStorage
 	HttpClient httpClient;
 	String urlFW[2] = {"http://10.0.1.22:8080/Blink/settings.conf", "http://10.4.1.59:8080/Blink/settings.conf"};
 	uint8_t urlIndex = 0;
+	Timer timerHttp;
 
 
 	// MODULES
@@ -239,7 +242,7 @@ struct ApplicationSettingsStorage
 
 			JsonObject& ota = network["ota"];
 			rom0 = ota["rom0"].toString();
-			rom1 = ota["rom1"].toString();
+			//rom1 = ota["rom1"].toString();
 			spiffs = ota["spiffs"].toString();
 
 			return 0;
@@ -344,77 +347,71 @@ struct ApplicationSettingsStorage
 			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
 
 			load(jsonString);
-			delete[] jsonString;
+			//delete[] jsonString;
 		}
 	}
 
 
-
-	/*
-	void load_debug() {
-		DEBUG4_PRINTLN("*** LoadDebug.started ***");
-		DynamicJsonBuffer jsonBuffer;
-		if (exist())
-		{
-			int size = fileGetSize(APP_SETTINGS_FILE);
-			char* jsonString = new char[size + 1];
-			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
-			JsonObject& root = jsonBuffer.parseObject(jsonString);
-
-			JsonObject& config = root["config"];
-			serial_speed = config["serial_speed"];
-			version = config["version"].toString();
-
-
-			JsonObject& pins = config["pins"];
-
-
-			if (pins.containsKey("sw")) {
-				DEBUG4_PRINTLN("* SW *");
-
-				JsonObject& jSw = pins["sw"];
-				this->sw_cnt = (byte)jSw["cnt"];
-				DEBUG4_PRINTF("sw_cnt=%d; ", sw_cnt);
-
-				sw = new byte[sw_cnt];
-				for (byte i = 0; i < sw_cnt; i++ ) {
-
-					if (jSw.containsKey(String(i+1).c_str())) {
-						this->sw[i] = jSw[String(i+1)];
-						DEBUG4_PRINTF2("sw[%d]=%d; ", i, sw[i]);
-					}
-				}
-				DEBUG4_PRINTLN();
-			}
-
-			if (pins.containsKey("led")) {
-				JsonObject& jLed = pins["led"];
-				this->led.setCount((byte)jLed["cnt"]);
-				this->led.setPin((byte)jLed["pin"]);
-			}
-
-			if (pins.containsKey("in")) {
-				DEBUG4_PRINTLN("* IN *");
-				JsonObject& jIn = pins["in"];
-				this->in_cnt = (byte)jIn["cnt"];
-				DEBUG4_PRINTF("in_cnt=%d; ", in_cnt);
-				if (in_cnt > 0) {
-					in = new byte[in_cnt];
-					for (byte i = 0; i < in_cnt; i++ ) {
-						if (jIn.containsKey(String(i+1).c_str())) {
-							this->in[i] = jIn[String(i+1)];
-							DEBUG4_PRINTF2("in[%d]=%d; ", i, in[i]);
-						}
-					}
-				}
-				DEBUG4_PRINTLN();
-			}
-
-
-			delete[] jsonString;
+	void deleteConf() {
+		if (exist()) {
+			fileDelete(APP_SETTINGS_FILE);
+			DEBUG1_PRINT(APP_SETTINGS_FILE );
+			DEBUG1_PRINTLN(" successful deleted!");
+		}
+		else {
+			DEBUG1_PRINT(APP_SETTINGS_FILE );
+			DEBUG1_PRINTLN(" wasn't found. Didn't deleted!");
 		}
 	}
-	 */
+
+	//timer.initializeMs(timer_shift, TimerDelegate(&MQTT::start, this)).startOnce();
+
+	uint8_t urlIndexChange() {
+		urlIndex++;
+		uint8_t urlMax = sizeof(urlFW)/ sizeof(urlFW[0]);
+		if (urlIndex > (urlMax - 1))
+			urlIndex = 0;
+
+		return urlIndex;
+
+	}
+
+	void onComplete(HttpClient& client, bool successful)
+	{
+		if (successful)
+			DEBUG1_PRINTLN("HttpLoad: Success sent");
+		else {
+			DEBUG1_PRINTLN("HttpLoad: Failed");
+			urlIndexChange();
+			timerHttp.initializeMs(HTTP_TRY_PERIOD, TimerDelegate(&ApplicationSettingsStorage::downloadSettings, this)).startOnce();
+		}
+
+		String response = client.getResponseString();
+		DEBUG4_PRINTLN("Server response: '" + response + "'");
+		if (response.length() > 0) {
+			fileSetContent(APP_SETTINGS_FILE, response);
+			DEBUG1_PRINTLN("Settings.conf downloaded and saved!");
+			int size = response.length();
+			//char* jsonString = new char[size + 1];
+			char* jsonString = const_cast<char*>(response.c_str()); //!!! Check this
+			load(jsonString);
+		}
+	}
+
+	void downloadSettings() {
+		httpClient.downloadString(urlFW[urlIndex], HttpClientCompletedDelegate(&ApplicationSettingsStorage::onComplete, this));
+	}
+
+	void loadHttp() {
+		if (httpClient.isProcessing()) {
+			DEBUG4_PRINTLN("We need to wait while request processing was completed");
+			return; // We need to wait while request processing was completed
+		}
+
+		timerHttp.initializeMs(HTTP_TRY_PERIOD, TimerDelegate(&ApplicationSettingsStorage::downloadSettings, this)).startOnce();
+
+	}
+
 	void saveLastWifi() {
 
 		DEBUG1_PRINT("*SLWF");
@@ -490,11 +487,11 @@ struct ApplicationSettingsStorage
 
 				JsonObject& ota = jsonBuffer.createObject();
 				ota["rom0"] = rom0.c_str();
-				ota["rom1"] = rom1.c_str();
+				//ota["rom1"] = rom1.c_str();
 				ota["spiffs"] = spiffs.c_str();
 
 				JsonObject& mqtt = jsonBuffer.createObject();
-				mqtt["broker_ip"] = broker_ip.toString().c_str();
+				mqtt["broker_ip"] = broker_ip.c_str();
 				mqtt["broker_port"] = broker_port;
 
 				network["ota"] = ota;
@@ -513,11 +510,11 @@ struct ApplicationSettingsStorage
 
 				JsonObject& ota = network["ota"];
 				ota["rom0"] = rom0.c_str();
-				ota["rom1"] = rom1.c_str();
+				//ota["rom1"] = rom1.c_str();
 				ota["spiffs"] = spiffs.c_str();
 
 				JsonObject& mqtt = network["mqtt"];
-				mqtt["broker_ip"] = broker_ip.toString().c_str();
+				mqtt["broker_ip"] = broker_ip.c_str();
 				mqtt["broker_port"] = broker_port;
 			}
 
@@ -604,11 +601,11 @@ struct ApplicationSettingsStorage
 		JsonObject& network = jsonBuffer.createObject();
 		network["ssid"] = ssid.c_str();
 		network["password"] = password.c_str();
-		network["dhcp"] = dhcp;
+		//network["dhcp"] = dhcp;
 		// Make copy by value for temporary string objects
-		network.addCopy("ip", ip.toString());
-		network.addCopy("netmask", netmask.toString());
-		network.addCopy("gateway", gateway.toString());
+		//network.addCopy("ip", ip.toString());
+		//network.addCopy("netmask", netmask.toString());
+		//network.addCopy("gateway", gateway.toString());
 
 		JsonObject& list = jsonBuffer.createObject();
 		list["1"] = ssid.c_str();
@@ -617,11 +614,11 @@ struct ApplicationSettingsStorage
 
 		JsonObject& ota = jsonBuffer.createObject();
 		ota["rom0"] = rom0.c_str();
-		ota["rom1"] = rom1.c_str();
+		//ota["rom1"] = rom1.c_str();
 		ota["spiffs"] = spiffs.c_str();
 
 		JsonObject& mqtt = jsonBuffer.createObject();
-		mqtt["broker_ip"] = broker_ip.toString().c_str();
+		mqtt["broker_ip"] = broker_ip.c_str();
 		mqtt["broker_port"] = broker_port;
 
 		network["ota"] = ota;
@@ -660,7 +657,7 @@ struct ApplicationSettingsStorage
 		jLed["pin"] = this->led.getPin();
 
 		pins["sw"] = jSw;
-		pins["sw"] = jSsw;
+		pins["ssw"] = jSsw;
 		pins["led"] = jLed;
 		pins["in"] = jIn;
 
@@ -731,7 +728,7 @@ struct ApplicationSettingsStorage
 
 	/*
 	 * WRONG. Before use NEEDS to be changed to new format (several wifi networks) application settings file
-	 */
+
 	String update(JsonObject& root) {
 
 		String result;
@@ -978,6 +975,7 @@ struct ApplicationSettingsStorage
 		this->update(root);
 		this->save();
 	}
+	*/
 
 	bool check() {
 		//TODO: need to be coded check for mandatory fields
