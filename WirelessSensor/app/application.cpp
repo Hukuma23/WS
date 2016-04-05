@@ -24,12 +24,13 @@ void publishSwitches(void);
 void checkWifi(void);
 void OtaUpdateSW();
 void OtaUpdateAll();
-void Switch();
+void switchBootRom();
 void ready();
 void connectOk();
 void connectFail();
 void stopAllTimers();
 String ShowInfo();
+void initModules();
 
 Timer timerMQTT;
 Timer timerDHT;
@@ -41,6 +42,7 @@ Timer timerListener;
 Timer timerSerialCollector;
 Timer timerSerialReceiver;
 
+bool initHttp = false;
 
 // wifi vars block
 bool isList = false;
@@ -89,7 +91,7 @@ bool pushSwitched[10];
 
 
 // MQTT client
-MqttClient mqtt(AppSettings.broker_ip.toString(), AppSettings.broker_port==0?1883:AppSettings.broker_port, onMessageReceived);
+MqttClient mqtt(AppSettings.broker_ip, AppSettings.broker_port==0?1883:AppSettings.broker_port, onMessageReceived);
 
 String topSubscr;
 
@@ -164,6 +166,8 @@ void IRAM_ATTR turnSw(byte num, bool state) {
 		AppSettings.led.red(num);
 		//mqtt.publish(sTopSw_Out+String(num+1), "OFF");
 	}
+
+	DEBUG4_PRINTLN("turnSw. Done");
 }
 
 void initSw() {
@@ -194,7 +198,7 @@ void IRAM_ATTR interruptHandlerInSw(byte num) {
 		pushSwitched[num] = false;
 		pushCount[num] = 1;
 		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] 1st time, nowState = " + String(ActStates.sw[num]);
-		mqtt.publish(topCfg_Out, logStr.c_str());
+		//mqtt.publish(topCfg_Out, logStr.c_str());
 		DEBUG4_PRINTLN(logStr);
 		return;
 	}
@@ -207,7 +211,7 @@ void IRAM_ATTR interruptHandlerInSw(byte num) {
 		pushSwitched[num] = true;
 		turnSw(num, !ActStates.sw[num]);
 		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] " + pushCount[num] +" times, nowState = " + String(ActStates.sw[num]);
-		mqtt.publish(topCfg_Out, logStr.c_str());
+		//mqtt.publish(topCfg_Out, logStr.c_str());
 
 		DEBUG4_PRINT(pushTime[num]);
 		DEBUG4_PRINTF( "   sw%d = ", num);
@@ -426,6 +430,10 @@ void onMessageReceived(String topic, String message) {
 			mqtt.publish(topCfg_Out, "Will restart now");
 			System.restart();
 		}
+		else if (cmd.equals("conf_del")) {
+			mqtt.publish(topCfg_Out, "Delete config now");
+			AppSettings.deleteConf();
+		}
 		else if (cmd.equals("switch")) {
 			uint8 before, after;
 			before = rboot_get_current_rom();
@@ -436,7 +444,7 @@ void onMessageReceived(String topic, String message) {
 			result += String(after);
 			result += ". Then will restart\r\n";
 			mqtt.publish(topCfg_Out, result);
-			Switch();
+			switchBootRom();
 		}
 		else if (cmd.equals("info")) {
 			mqtt.publish(topCfg_Out, ShowInfo());
@@ -452,11 +460,12 @@ void onMessageReceived(String topic, String message) {
 			DEBUG4_PRINTLN("REBOOT stub routine");
 			system_restart();
 		}
-		else if (cmd.equals("set_update")) {
-			String updList = AppSettings.update(root);
+		else if (cmd.equals("conf_httpload")) {
+			String updList = "Will try to load Settings by http";
+			AppSettings.loadHttp();
 			mqtt.publish(topCfg_Out, updList);
 		}
-		else if (cmd.equals("set_save")) {
+		else if (cmd.equals("conf_save")) {
 			AppSettings.save();
 			mqtt.publish(topCfg_Out, "Settings saved.");
 		}
@@ -503,6 +512,7 @@ void startMqttClient() {
 	DEBUG4_PRINTLN("_mqttConnect");
 	DEBUG4_PRINT("_mqtt_broker_ip=");
 	DEBUG4_PRINTLN(mqtt.server);
+	AppSettings.broker_ip = mqtt.server;
 	DEBUG4_PRINT("_mqtt_port=");
 	DEBUG4_PRINTLN(mqtt.port);
 
@@ -995,18 +1005,8 @@ void saveDefaultWifi()
 	//DEBUG4_PRINTLN(AppSettings.printf());
 }
 
-// Will be called when WiFi station was connected to AP
-void connectOk() {
-	DEBUG4_PRINTLN("I'm CONNECTED");
 
-	saveDefaultWifi();
-
-	var_init();
-
-	DEBUG4_PRINTLN("Start timers...");
-
-	//procTimer.initializeMs(30 * 1000, user_loop).start();
-
+void startTimers() {
 	DEBUG4_PRINT("mqttTimer.. ");
 	timerMQTT.initializeMs(AppSettings.shift_mqtt, setMQTT).startOnce();
 	delay(50);
@@ -1066,6 +1066,43 @@ void connectOk() {
 		DEBUG4_PRINT("Payload size = ");
 		DEBUG4_PRINTLN(protocol.getPayloadSize());
 	}
+}
+
+// Will be called when WiFi station was connected to AP
+void connectOk() {
+	if (!initHttp) {
+		DEBUG4_PRINTLN("I'm CONNECTED");
+		saveDefaultWifi();
+	}
+	else {
+		initModules();
+	}
+
+	var_init();
+
+	DEBUG4_PRINTLN("Start timers...");
+
+	//procTimer.initializeMs(30 * 1000, user_loop).start();
+
+	startTimers();
+
+}
+
+void checkAppSettings() {
+	if (AppSettings.exist()) {
+		DEBUG1_PRINTLN("Settings.conf successful downloaded. ESP8266 will be restarted soon");
+		timerWIFI.stop();
+		//System.restart();
+		connectOk();
+	}
+}
+
+void connectOkHttpLoad() {
+	DEBUG4_PRINTLN("I'm CONNECTED needs Settings.conf load by http");
+
+	AppSettings.loadHttp();
+
+	timerWIFI.initializeMs(10000, checkAppSettings).start();
 
 }
 
@@ -1085,6 +1122,9 @@ void connectFail() {
 	DEBUG1_PRINTLN(millis() - time1);
 	DEBUG1_PRINT("&time2=");
 	DEBUG1_PRINTLN(millis() - time2);
+
+	if (initHttp)
+		switchBootRom();
 
 
 	ready();
@@ -1422,36 +1462,6 @@ void ready() {
 	//Serial.println(system_get_free_heap_size());
 }
 
-void rBootInit() {
-	DEBUG4_PRINTLN("Main.rBootInit() running");
-	// mount spiffs
-	int slot = rboot_get_current_rom();
-#ifndef DISABLE_SPIFFS
-	if (slot == 0) {
-#ifdef RBOOT_SPIFFS_0
-		DEBUG1_PRINTF2("trying to mount spiffs at %x, length %d", RBOOT_SPIFFS_0 + 0x40200000, SPIFF_SIZE);
-		spiffs_mount_manual(RBOOT_SPIFFS_0 + 0x40200000, SPIFF_SIZE);
-#else
-		DEBUG1_PRINTF2("trying to mount spiffs at %x, length %d", 0x40300000, SPIFF_SIZE);
-		spiffs_mount_manual(0x40300000, SPIFF_SIZE);
-#endif
-	} else {
-#ifdef RBOOT_SPIFFS_1
-		DEBUG1_PRINTF2("trying to mount spiffs at %x, length %d", RBOOT_SPIFFS_1 + 0x40200000, SPIFF_SIZE);
-		spiffs_mount_manual(RBOOT_SPIFFS_1 + 0x40200000, SPIFF_SIZE);
-#else
-		DEBUG1_PRINTF2("trying to mount spiffs at %x, length %d", 0x40500000, SPIFF_SIZE);
-		spiffs_mount_manual(0x40500000, SPIFF_SIZE);
-#endif
-	}
-#else
-	INFO_PRINTLN("spiffs disabled");
-#endif
-
-	INFO_PRINTF("\r\nCurrently running rom %d.\r\n", slot);
-	INFO_PRINTLN();
-}
-
 void OtaUpdate_CallBack(bool result) {
 
 	DEBUG4_PRINTLN("In callback...");
@@ -1497,7 +1507,7 @@ void OtaUpdateSW() {
 	if (slot == 0) {
 		otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom0);
 	} else {
-		otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom1);
+		otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom0);
 	}
 #endif
 
@@ -1535,7 +1545,7 @@ void OtaUpdateAll() {
 	if (slot == 0) {
 		otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom0);
 	} else {
-		otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom1);
+		otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom0);
 	}
 #endif
 
@@ -1559,7 +1569,7 @@ void OtaUpdateAll() {
 	otaUpdater->start();
 }
 
-void Switch() {
+void switchBootRom() {
 	uint8 before, after;
 	before = rboot_get_current_rom();
 	if (before == 0) after = 1; else after = 0;
@@ -1573,7 +1583,12 @@ String ShowInfo() {
 	String result;
 	String temp;
 
+	rboot_config bootconf;
+	bootconf = rboot_get_config();
+
 	result = "Info:";
+	result += "\r\nBoot slot: ";
+	result += bootconf.current_rom;
 	result += "\r\nROM: ";
 	result += AppSettings.version;
 	result += "\r\nSDK: ";
@@ -1603,7 +1618,7 @@ void configureNetwork() {
 	DEBUG4_PRINTLN("*********************************************");
 
 	//Initialization of rBoot OTA
-	rBootInit();
+	AppSettings.rBootInit();
 
 	String mac = WifiAccessPoint.getMAC();
 	int mLen = mac.length();
@@ -1644,28 +1659,11 @@ void configureNetwork() {
 
 }
 
-
-void init() {
-	//ets_wdt_enable();
-	//ets_wdt_disable();
-	time1 = millis();
-	Serial.begin(SERIAL_BAUD_RATE); // 115200 by default
-
-#ifdef DEBUG1
-	Serial.systemDebugOutput(true); // Allow debug print to serial
-#else
-	Serial.systemDebugOutput(false); // Won't allow debug print to serial
-#endif
-
-	INFO_PRINT("Firmware started. Version: ");
-	INFO_PRINTLN(AppSettings.version);
-
-	PRINT_MEM();
-	//Serial.print("StartMem: ");
-	//Serial.println(system_get_free_heap_size());
-
+void initModules() {
 	if (AppSettings.exist()) {
+		DEBUG4_PRINTLN("ActStates.init().start");
 		ActStates.init();
+		DEBUG4_PRINTLN("ActStates.init().end");
 
 		//AppSettings.load();
 		//DEBUG4_PRINTLN(AppSettings.print());
@@ -1673,39 +1671,6 @@ void init() {
 		//AppSettings.print();
 		//AppSettings.load_debug();
 
-		AppSettings.loadWifiList();
-
-		//PRINT_MEM();
-
-		for (int i=0; i < AppSettings.wifi_cnt; i++)
-			DEBUG4_PRINTLN(AppSettings.wifiList[i]);
-
-
-		WifiAccessPoint.enable(false);
-		WifiStation.enable(true);
-
-		//int result = AppSettings.loadNetwork();
-		//DEBUG4_PRINT("result of AppSettings.loadNetwork = ");
-		//DEBUG4_PRINTLN(result);
-
-		//PRINT_MEM();
-		//Serial.print("!-- Mem after loadNetwork: ");
-		//Serial.println(system_get_free_heap_size());
-		//if (result==0) {
-		if (!(AppSettings.ssid.equals("")) && (AppSettings.ssid != null)) {
-			WifiStation.config(AppSettings.ssid, AppSettings.password);
-			WifiStation.waitConnection(connectOk, 30, connectFail); // We recommend 20+ seconds for connection timeout at start
-			DEBUG1_PRINTF("ASet.ssid = %s  ", AppSettings.ssid.c_str());
-			DEBUG1_PRINTF("pass = %s", AppSettings.password.c_str());
-			DEBUG1_PRINTLN();
-			//delay(1000);
-
-			PRINT_MEM();
-		}
-		else {
-			// Set system ready callback method
-			System.onReady(ready);
-		}
 
 		if (AppSettings.is_dht)
 			dht.begin();
@@ -1741,9 +1706,9 @@ void init() {
 		}
 
 		//PRINT_MEM();
-
+		DEBUG4_PRINTLN("initSw.start");
 		initSw();
-
+		DEBUG4_PRINTLN("initSw.end");
 		PRINT_MEM();
 
 
@@ -1751,7 +1716,59 @@ void init() {
 		//DEBUG1_PRINTLN("Program started");
 
 	}
+}
+
+void init() {
+	//ets_wdt_enable();
+	//ets_wdt_disable();
+	time1 = millis();
+	Serial.begin(SERIAL_BAUD_RATE); // 115200 by default
+
+#ifdef DEBUG1
+	Serial.systemDebugOutput(true); // Allow debug print to serial
+#else
+	Serial.systemDebugOutput(false); // Won't allow debug print to serial
+#endif
+
+	INFO_PRINT("Firmware started + Version: ");
+	INFO_PRINTLN(AppSettings.version);
+
+	PRINT_MEM();
+	//Serial.print("StartMem: ");
+	//Serial.println(system_get_free_heap_size());
+
+	if (AppSettings.exist()) {
+		AppSettings.loadWifiList();
+
+		//PRINT_MEM();
+
+		for (int i=0; i < AppSettings.wifi_cnt; i++)
+			DEBUG4_PRINTLN(AppSettings.wifiList[i]);
+
+
+		WifiAccessPoint.enable(false);
+		WifiStation.enable(true);
+
+		if (!(AppSettings.ssid.equals("")) && (AppSettings.ssid != null)) {
+			WifiStation.config(AppSettings.ssid, AppSettings.password);
+			WifiStation.waitConnection(connectOk, 30, connectFail); // We recommend 20+ seconds for connection timeout at start
+			DEBUG1_PRINTF("ASet.ssid = %s  ", AppSettings.ssid.c_str());
+			DEBUG1_PRINTF("pass = %s", AppSettings.password.c_str());
+			DEBUG1_PRINTLN();
+			//delay(1000);
+
+			PRINT_MEM();
+		}
+		else {
+			// Set system ready callback method
+			System.onReady(ready);
+		}
+
+		initModules();
+	}
 	else {
+		initHttp = true;
+		WifiStation.waitConnection(connectOkHttpLoad, 30, connectFail);
 		ERROR_PRINTLN("Error: there is no configuration file!");
 	}
 
