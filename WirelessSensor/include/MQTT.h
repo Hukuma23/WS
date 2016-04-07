@@ -38,27 +38,40 @@ private:
 
 	bool isFirstTime = true;
 
-	void init(String broker_ip, int broker_port, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	void init(String broker_ip, int broker_port, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL, MqttStringSubscriptionCallback delegateFunction = NULL);
 	byte connect();
 	void disconnect();
 
 	void loop();
 	void start();
 
+	TimerDelegate delegate_loop = nullptr;
+	MqttStringSubscriptionCallback delegate_callback = nullptr;
 
+	void setCallback(TimerDelegate delegateFunction);
+	void setCallback(MqttStringSubscriptionCallback delegateFunction);
 
-public:
-	MQTT(String broker_ip, int broker_port);
-	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval);
-	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, String topicMain, String topicClient);
+protected:
+	static MQTT *mqttInstance;
+
+	MQTT();
+	/*
+	MQTT(String broker_ip, int broker_port, MqttStringSubscriptionCallback delegateFunction = NULL);
+	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, MqttStringSubscriptionCallback delegateFunction = NULL);
+	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, String topicMain, String topicClient, MqttStringSubscriptionCallback delegateFunction = NULL);
+	*/
 	virtual ~MQTT();
 
+public:
+
+	static MQTT *getInstance();
+	static void delInstance();
 
 	void setShift(unsigned int shift);
 	void setInterval(unsigned int interval);
 	void setTimer(unsigned int shift, unsigned int interval);
 
-	void startTimer();
+	void startTimer(TimerDelegate delegate_loop = NULL);
 	void stopTimer();
 
 
@@ -70,7 +83,7 @@ public:
 	bool publish(String topic, byte index, MessageDirection direction, String message);
 	void onMessageReceived(String topic, String message); // Forward declaration for our callback
 
-};
+} ;
 
 
 #endif /* INCLUDE_MQTT_H_ */

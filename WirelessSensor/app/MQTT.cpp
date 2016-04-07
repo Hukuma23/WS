@@ -7,31 +7,44 @@
 
 #include <MQTT.h>
 
+MQTT *MQTT::getInstance() {
+	if (!mqttInstance)
+		mqttInstance = new MQTT();
+	return mqttInstance;
+}
 
-void MQTT::init(String broker_ip, int broker_port, unsigned int shift, unsigned int interval) {
+void MQTT::delInstance() {
+	if (mqttInstance)
+		delete mqttInstance;
+}
+
+void MQTT::init(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, MqttStringSubscriptionCallback delegateFunction) {
 	this->timer_shift = shift;
 	this->timer_interval = interval;
-
 	this->broker_ip = broker_ip;
 	this->broker_port = (broker_port==0?1883:broker_port);
+
+	setCallback(delegateFunction);
+
 	// MQTT client
-	mqtt = new MqttClient(this->broker_ip, this->broker_port, MqttStringSubscriptionCallback(&MQTT::onMessageReceived, this));
+	mqtt = new MqttClient(this->broker_ip, this->broker_port, delegate_callback);
 
 }
 
-MQTT::MQTT(String broker_ip, int broker_port) {
-	init(broker_ip, broker_port);
+/*
+MQTT::MQTT(String broker_ip, int broker_port, MqttStringSubscriptionCallback delegateFunction) {
+	init(broker_ip, broker_port, delegateFunction);
 }
 
-MQTT::MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval) {
-	init(broker_ip, broker_port, shift, interval);
+MQTT::MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, MqttStringSubscriptionCallback delegateFunction) {
+	init(broker_ip, broker_port, shift, interval, delegateFunction);
 }
 
-MQTT::MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, String topicMain, String topicClient) {
-	init(broker_ip, broker_port, shift, interval);
+MQTT::MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, String topicMain, String topicClient, MqttStringSubscriptionCallback delegateFunction) {
+	init(broker_ip, broker_port, shift, interval, delegateFunction);
 	setTopic(topicMain, topicClient);
-
 }
+*/
 
 void MQTT::setTopic(String topicMain, String topicClient) {
 	this->topicMain = topicMain;
@@ -44,8 +57,10 @@ MQTT::~MQTT() {
 	delete mqtt;
 }
 
-void MQTT::startTimer() {
-	timer.initializeMs(timer_shift, TimerDelegate(&MQTT::start, this)).startOnce();
+void MQTT::startTimer(TimerDelegate delegate_loop) {
+
+	setCallback(delegate_loop);
+	timer.initializeMs(timer_shift, this->delegate_loop).startOnce();
 	connect();
 }
 
@@ -119,4 +134,12 @@ bool MQTT::publish(String topic, byte index, MessageDirection direction, String 
 	return mqtt->publish(fullTopic, message);
 }
 
+void MQTT::setCallback(TimerDelegate delegateFunction) {
+	if (delegateFunction)
+		this->delegate_loop = delegateFunction;
+}
 
+void MQTT::setCallback(MqttStringSubscriptionCallback delegateFunction) {
+	if (delegateFunction)
+		this->delegate_callback = delegateFunction;
+}
