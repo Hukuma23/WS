@@ -7,11 +7,6 @@
  *      Actual State of switches and other information
  */
 
-/*
-
- */
-
-
 #include <SmingCore/SmingCore.h>
 #include <Logger.h>
 
@@ -47,17 +42,6 @@ struct ActualStateStorage {
 		delete sw;
 		delete ssw;
 	}
-
-	/*
-	void setSwCount(byte cnt) {
-		sw_cnt = cnt;
-		sw = new bool[sw_cnt];
-	}
-
-	void setSswCount(byte cnt) {
-		ssw_cnt = cnt;
-		ssw = new bool[ssw_cnt];
-	}*/
 
 	void load() {
 		DynamicJsonBuffer jsonBuffer;

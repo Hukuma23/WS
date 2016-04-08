@@ -135,59 +135,6 @@ struct ApplicationSettingsStorage
 		}
 	}
 
-	/*
-	int8_t loadNetwork(void) {
-
-		if ((this->network_ind < 0) || (this->network_ind > 5)) {
-			return -1;
-		}
-
-		// the last complete wifi will stored in network_ind == 0
-		DynamicJsonBuffer jsonBuffer;
-		if (exist()) {
-			int size = fileGetSize(APP_SETTINGS_FILE);
-			char* jsonString = new char[size + 1];
-			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
-			JsonObject& root = jsonBuffer.parseObject(jsonString);
-
-			JsonObject& config = root["config"];
-			JsonObject& networks = config["networks"];
-			JsonObject& list = networks["list"];
-
-			String networkName = list[String(network_ind)].toString();
-			JsonObject& network = networks[networkName];
-
-			if (network_ind == 0) {
-				if (list.containsKey("0"))
-					ssid = network["ssid"].toString();
-				else {
-					delete[] jsonString;
-					return -1;
-				}
-			}
-
-			password = network["password"].toString();
-			dhcp = network["dhcp"];
-			ip = network["ip"].toString();
-			netmask = network["netmask"].toString();
-			gateway = network["gateway"].toString();
-
-			JsonObject& mqtt = network["mqtt"];
-			broker_ip = mqtt["broker_ip"].toString();
-			broker_port = mqtt["broker_port"];
-
-			JsonObject& ota = network["ota"];
-			rom0 = ota["rom0"].toString();
-			rom1 = ota["rom1"].toString();
-			spiffs = ota["spiffs"].toString();
-
-			delete[] jsonString;
-			return 0;
-		}
-		return -1;
-	}
-	 */
-
 	int8_t loadNetwork(String ssid = "") {
 
 		bool zero = false;
