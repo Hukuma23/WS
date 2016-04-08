@@ -99,30 +99,28 @@ MQTT mqtt(AppSettings.broker_ip, AppSettings.broker_port,
 
 String topSubscr;
 
-String topSw_In;
+String topCfg;
 
-String topCfg_In;
-String topCfg_Out;
+String topSw;
 
-String topSw_Out;
-String topSw2_Out;
+String topDHTTemp;
+String topDHTHum;
 
-String topTemp1_Out;
-String topHum1_Out;
+String topDSTemp;
 
-String topDSTemp_Out;
+String topBMPTemp;
+String topBMPPress;
 
-String topBMPTemp_Out;
-String topBMPPress_Out;
-
-String topVCC_Out;
-String topLog_Out;
-String topStart_Out;
+String topVCC;
+String topLog;
+String topStart;
 
 // Serial
-String sTopSw_In;
+String sTopSw;
 
-String sTopSw_Out;
+String topWaterCold;
+String topWaterHot;
+
 
 
 String topWaterCold_Out;
@@ -251,28 +249,26 @@ void var_init() {
 
 	topSubscr = topicMain + "/in/#";
 
-	topSw_In = topicMain + "/in/" + topicClient + "sw";
-	topSw_Out = topicMain + "/out/" + topicClient + "sw";
+	topSw = "sw";
 
 	// * Serial start *
-	sTopSw_In = topicMain + "/in/" + topicClient + "ssw";
-	sTopSw_Out = topicMain + "/out/" + topicClient + "ssw";
+
+	sTopSw = "ssw";
 	// * Serial end *
 
-	topTemp1_Out = topicMain + "/out/" + topicClient + "Temperature";
-	topHum1_Out = topicMain + "/out/" + topicClient + "Humidity";
+	topDHTTemp = "Temperature";
+	topDHTHum = "Humidity";
 
-	topDSTemp_Out = topicMain + "/out/" + topicClient + "DS_Temperature";
-	topBMPTemp_Out = topicMain + "/out/" + topicClient + "BMP_Temperature";
-	topBMPPress_Out = topicMain + "/out/" + topicClient + "BMP_Pressure";
+	topDSTemp = "DS_Temperature";
+	topBMPTemp = "BMP_Temperature";
+	topBMPPress = "BMP_Pressure";
 
-	topCfg_In = topicMain + "/in/" + topicClient + "config";
-	topCfg_Out = topicMain + "/out/" + topicClient + "config";
 
-	topLog_Out = topicMain + "/out/" + topicClient + "log";
-	topStart_Out = topicMain + "/out/" + topicClient + "start";
+	topCfg = "config";
 
-	topVCC_Out = topicMain + "/out/" + topicClient + "VCC";
+	topLog = "log";
+	topStart = "start";
+	topVCC = "VCC";
 
 	mqttClientName = "esp8266-" + topicClient;
 	mqttClientName += String(micros() & 0xffff, 16);
@@ -291,7 +287,6 @@ void var_init() {
 	initSerialVars();
 
 }
-
 String uptime() {
 	unsigned int uptime = loopIndex / 2;
 	int months = uptime / 43200;
@@ -367,30 +362,31 @@ void onMessageReceived(String topic, String message) {
 
 	// SW
 	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
-		if (topic.equals((topSw_In+String(i+1)))) {
+		//if (topic.equals((topSw_In+String(i+1)))) {
+		if (topic.equals(mqtt.getTopic(topSw, (i+1), IN))) {
 			if (message.equals("ON")) {
 				turnSw(i, HIGH);
 			} else if (message.equals("OFF")) {
 				turnSw(i, LOW);
 			} else
-				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (topSw_In+String(i+1)).c_str());
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt.getTopic(topSw, (i+1), IN)).c_str());
 		}
 	}
 
 	// *** Serial block ***
 
 	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
-		if (topic.equals((sTopSw_In+String(i+1)))) {
+		if (topic.equals(mqtt.getTopic(sTopSw, (i+1), IN))) {
 			if (message.equals("ON")) {
 				turnSsw(i, HIGH);
 			} else if (message.equals("OFF")) {
 				turnSsw(i, LOW);
 			} else
-				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (sTopSw_In+String(i+1)).c_str());
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt.getTopic(sTopSw, (i+1), IN)).c_str());
 		}
 	}
 	// *** Serial block end ***
-	if (topic.equals(topCfg_In)) {
+	if (topic.equals(mqtt.getTopic(topCfg, IN))) {
 
 		int msgLen = message.length() + 1;
 		DEBUG4_PRINT("msgLen = ");
@@ -419,23 +415,28 @@ void onMessageReceived(String topic, String message) {
 
 		if (cmd.equals("sw_update")) {
 			stopAllTimers();
-			mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware only now");
+			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware only now");
+			mqtt.publish(topCfg, OUT, "Will stop all timers and UPDATE on the air firmware only now");
 			OtaUpdateSW();
 		}
 		else if (cmd.equals("sw_update_all")) {
-			mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware and spiffs now");
+			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware and spiffs now");
+			mqtt.publish(topCfg, OUT, "Will stop all timers and UPDATE on the air firmware and spiffs now");
 			stopAllTimers();
 			OtaUpdateAll();
 		}
 		else if ((cmd.equals("version")) || (cmd.equals("ver"))) {
-			mqtt.publish(topCfg_Out, AppSettings.version);
+			//mqtt.publish(topCfg_Out, AppSettings.version);
+			mqtt.publish(topCfg, OUT, AppSettings.version);
 		}
 		else if (cmd.equals("restart")) {
-			mqtt.publish(topCfg_Out, "Will restart now");
+			//mqtt.publish(topCfg_Out, "Will restart now");
+			mqtt.publish(topCfg, OUT, "Will restart now");
 			System.restart();
 		}
 		else if (cmd.equals("conf_del")) {
-			mqtt.publish(topCfg_Out, "Delete config now");
+			//mqtt.publish(topCfg_Out, "Delete config now");
+			mqtt.publish(topCfg, OUT, "Will delete config now");
 			AppSettings.deleteConf();
 		}
 		else if (cmd.equals("switch")) {
@@ -447,18 +448,22 @@ void onMessageReceived(String topic, String message) {
 			result += " to rom ";
 			result += String(after);
 			result += ". Then will restart\r\n";
-			mqtt.publish(topCfg_Out, result);
+			//mqtt.publish(topCfg_Out, result);
+			mqtt.publish(topCfg, OUT, result);
 			switchBootRom();
 		}
 		else if (cmd.equals("info")) {
-			mqtt.publish(topCfg_Out, ShowInfo());
+			//mqtt.publish(topCfg_Out, ShowInfo());
+			mqtt.publish(topCfg, OUT, ShowInfo());
 		}
 		else if (cmd.equals("uptime")) {
-			mqtt.publish(topCfg_Out, "Loopindex = " + String(loopIndex));
+			//mqtt.publish(topCfg_Out, "Loopindex = " + String(loopIndex));
+			mqtt.publish(topCfg, OUT, "Loopindex = " + String(loopIndex));
 
 			String strUptime = uptime();
 			DEBUG4_PRINTLN("Uptime is " + strUptime);
-			mqtt.publish(topCfg_Out, "Uptime is " + strUptime);
+			//mqtt.publish(topCfg_Out, "Uptime is " + strUptime);
+			mqtt.publish(topCfg, OUT, "Uptime is " + strUptime);
 		}
 		else if (cmd.equals("reboot")) {
 			DEBUG4_PRINTLN("REBOOT stub routine");
@@ -467,43 +472,29 @@ void onMessageReceived(String topic, String message) {
 		else if (cmd.equals("conf_httpload")) {
 			String updList = "Will try to load Settings by http";
 			AppSettings.loadHttp();
-			mqtt.publish(topCfg_Out, updList);
+			//mqtt.publish(topCfg_Out, updList);
+			mqtt.publish(topCfg, OUT, updList);
+
 		}
 		else if (cmd.equals("conf_save")) {
 			AppSettings.save();
-			mqtt.publish(topCfg_Out, "Settings saved.");
+			//mqtt.publish(topCfg_Out, "Settings saved.");
+			mqtt.publish(topCfg, OUT, "Settings saved.");
 		}
 		else if (cmd.equals("act_print")) {
 			String strPrint = ActStates.print();
 			DEBUG4_PRINTLN(strPrint);
 			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrint.length());
-			mqtt.publish(topCfg_Out, strPrint);
+			//mqtt.publish(topCfg_Out, strPrint);
+			mqtt.publish(topCfg, OUT, strPrint);
 		}
 		else if (cmd.equals("act_printf")) {
 			String strPrintf = ActStates.printf();
 			DEBUG4_PRINTLN(strPrintf);
 			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrintf.length());
-			mqtt.publish(topCfg_Out, strPrintf);
+			//mqtt.publish(topCfg_Out, strPrintf);
+			mqtt.publish(topCfg, OUT, strPrintf);
 		}
-		/*
-		else if (cmd.equals("help")) {
-			String strHelp;
-			strHelp = "HELP\r\n";
-			strHelp += "Example: { \"cmd\" : \"command name\", \"args\" : { \"argument\" : \"option\" } }";
-			strHelp += "Commands: help, restart, info, uptime";
-			strHelp += "   sw_update - will update firmware only, sw_update_all, switch";
-			strHelp += "   sw_update_all - will update firmware and spiff";
-			strHelp += "   switch - between roms (ex. from rom0 to rom1)";
-			strHelp += "   set_printf - print current configurations from memory";
-			strHelp += "   set_print - print configuration file";
-			strHelp += "   set_update - update configurations from command package";
-			strHelp += "      ex. {\"cmd\":\"set_update\", \"serial_speed\":115200}";
-			strHelp += "   set_save - save configurations from memory to file";
-
-			DEBUG4_PRINTLN(strHelp);
-			mqtt.publish(topCfg_Out, strHelp);
-		}
-		 */
 		else
 			DEBUG4_PRINTLN("Topic matched, command is UNKNOWN");
 	}
@@ -511,37 +502,14 @@ void onMessageReceived(String topic, String message) {
 		DEBUG4_PRINTLN("topic is UNKNOWN");
 }
 
-/*
-void startMqttClient() {
-
-	DEBUG4_PRINTLN("_mqttConnect");
-	DEBUG4_PRINT("_mqtt_broker_ip=");
-	DEBUG4_PRINTLN(mqtt.getServer());
-	AppSettings.broker_ip = mqtt.getServer();
-	DEBUG4_PRINT("_mqtt_port=");
-	DEBUG4_PRINTLN(mqtt.getPort());
-
-	// Run MQTT client
-	byte state = mqtt.getConnectionState();
-	DEBUG4_PRINT("MQTT.state=");
-	DEBUG4_PRINTLN(state);
-
-	if (state != eTCS_Connected) {
-		mqtt.connect(mqttClientName);
-		DEBUG4_PRINTLN("Connecting to MQTT broker");
-		mqtt.subscribe(topSubscr);
-	}
-}
-*/
-
-
 void publishSerialSw() {
 
 	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
 		if (ActStates.ssw[i])
-			mqtt.publish(sTopSw_Out+String(i+1), "ON");
+			mqtt.publish(sTopSw, (i+1), OUT, "ON");	//mqtt.publish(sTopSw_Out+String(i+1), "ON");
+
 		else
-			mqtt.publish(sTopSw_Out+String(i+1), "OFF");
+			mqtt.publish(sTopSw, (i+1), OUT, "OFF");	//mqtt.publish(sTopSw_Out+String(i+1), "OFF");
 	}
 
 	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
@@ -558,25 +526,25 @@ void publishSerial() {
 
 	// Publish DHT
 	if (sDHTTemp != UNDEF) {
-		result = mqtt.publish(getOutTopic("sdht_t"), String(sDHTTemp));
+		result = mqtt.publish("sdht_t", OUT, String(sDHTTemp));	//result = mqtt.publish(getOutTopic("sdht_t"), String(sDHTTemp));
 		if (result)
 			sDHTTemp = UNDEF;
 	}
 
 	if (sDHTHum != UNDEF) {
-		result = mqtt.publish(getOutTopic("sdht_h"), String(sDHTHum));
+		result = mqtt.publish("sdht_h", OUT, String(sDHTHum));	//result = mqtt.publish(getOutTopic("sdht_h"), String(sDHTHum));
 		if (result)
 			sDHTHum = UNDEF;
 	}
 
 	// Publish BMP
 	if (sBMPTemp != UNDEF) {
-		result = mqtt.publish(getOutTopic("sbmp_t"), String(sBMPTemp));
+		result = mqtt.publish("sbmp_t", OUT, String(sBMPTemp));	//result = mqtt.publish(getOutTopic("sbmp_t"), String(sBMPTemp));
 		if (result)
 			sBMPTemp = UNDEF;
 	}
 	if (sBMPPress != UNDEF) {
-		result = mqtt.publish(getOutTopic("sbmp_p"), String(sBMPPress));
+		result = mqtt.publish("sbmp_p", OUT, String(sBMPPress));	//result = mqtt.publish(getOutTopic("sbmp_p"), String(sBMPPress));
 		if (result)
 			sBMPPress = UNDEF;
 	}
@@ -585,7 +553,7 @@ void publishSerial() {
 	int dsSize = sizeof sDSTemp / sizeof sDSTemp[0];
 	for (int i=0; i < dsSize; i++) {
 		if (sDSTemp[i] != UNDEF) {
-			result = mqtt.publish(getOutTopic("sds_t") + String(i), String(sDSTemp[i]));
+			result = mqtt.publish("sds_t", i, OUT, String(sDSTemp[i]));	//result = mqtt.publish(getOutTopic("sds_t") + String(i), String(sDSTemp[i]));
 			if (result)
 				sDSTemp[i] = UNDEF;
 		}
@@ -593,12 +561,12 @@ void publishSerial() {
 
 	// Publish Water
 	if ((sWaterCold > 0) && (sWaterCold != UNDEF)) {
-		result = mqtt.publish(getOutTopic("s_wc"), String(sWaterCold));
+		result = mqtt.publish("s_wc", OUT, String(sWaterCold));	//result = mqtt.publish(getOutTopic("s_wc"), String(sWaterCold));
 		if (result)
 			sWaterCold = UNDEF;
 	}
 	if ((sWaterHot > 0) && (sWaterHot != UNDEF)) {
-		result = mqtt.publish(getOutTopic("s_wh"), String(sWaterHot));
+		result = mqtt.publish("s_wh", OUT, String(sWaterHot));	//result = mqtt.publish(getOutTopic("s_wh"), String(sWaterHot));
 		if (result)
 			sWaterHot = UNDEF;
 	}
@@ -617,17 +585,6 @@ void mqtt_loop() {
 	DEBUG4_PRINT(loopIndex);
 	DEBUG4_PRINTLN(" ***");
 
-	//startMqttClient();
-
-	// Published start message and mqtt client name
-	if (!isPubStart) {
-		if (mqtt.publish(topStart_Out, "1")) {
-			mqtt.publish(topLog_Out, mqttClientName);
-			DEBUG4_PRINTLN("publish mqtt START!");
-			isPubStart = true;
-		}
-	}
-
 	publishSwitches();
 
 	system_soft_wdt_stop();
@@ -643,8 +600,7 @@ void mqtt_loop() {
 				DEBUG4_PRINT(dsTemp[i]);
 				DEBUG4_PRINT(" C... ");
 
-				bool result = mqtt.publish(topDSTemp_Out + String(i),
-						String(dsTemp[i]));
+				bool result = mqtt.publish(topDSTemp, i, OUT, String(dsTemp[i]));	//bool result = mqtt.publish(topDSTemp_Out + String(i), String(dsTemp[i]));
 
 				DEBUG4_PRINT("Published: ");
 				DEBUG4_PRINTLN(result);
@@ -663,7 +619,7 @@ void mqtt_loop() {
 	DEBUG4_PRINTLN();
 	DEBUG4_PRINT("DHT Temperature ");
 	if (dhtTemp > -255) {
-		bool result = mqtt.publish(topTemp1_Out, String(dhtTemp));
+		bool result = mqtt.publish(topDHTTemp, OUT, String(dhtTemp));	//bool result = mqtt.publish(topTemp1_Out, String(dhtTemp));
 		DEBUG4_PRINT(" ");
 		DEBUG4_PRINT(dhtTemp);
 		DEBUG4_PRINT(" C... ");
@@ -677,7 +633,7 @@ void mqtt_loop() {
 
 	DEBUG4_PRINT("DHT Humidity ");
 	if (dhtHum > -255) {
-		bool result = mqtt.publish(topHum1_Out, String(dhtHum));
+		bool result = mqtt.publish(topDHTHum, OUT, String(dhtHum));	//bool result = mqtt.publish(topHum1_Out, String(dhtHum));
 		DEBUG4_PRINT(" ");
 		DEBUG4_PRINT(dhtHum);
 		DEBUG4_PRINT(" %... ");
@@ -695,7 +651,7 @@ void mqtt_loop() {
 	DEBUG4_PRINTLN();
 	DEBUG4_PRINT("BMP Temperature ");
 	if (bmpTemp > -255) {
-		bool result = mqtt.publish(topBMPTemp_Out, String(bmpTemp));
+		bool result = mqtt.publish(topBMPTemp, OUT, String(bmpTemp));	//bool result = mqtt.publish(topBMPTemp_Out, String(bmpTemp));
 		DEBUG4_PRINT(" ");
 		DEBUG4_PRINT(bmpTemp);
 		DEBUG4_PRINT(" C... ");
@@ -710,7 +666,7 @@ void mqtt_loop() {
 	DEBUG4_PRINT("BMP Pressure ");
 	if (bmpPress > -255) {
 
-		bool result = mqtt.publish(topBMPPress_Out, String(bmpPress));
+		bool result = mqtt.publish(topBMPPress, OUT, String(bmpPress));	//bool result = mqtt.publish(topBMPPress_Out, String(bmpPress));
 		DEBUG4_PRINT(" ");
 		DEBUG4_PRINT(bmpPress);
 		DEBUG4_PRINT(" Pa... ");
@@ -744,12 +700,14 @@ void mqtt_loop() {
 
 void serialCollector() {
 	protocol.sendSerialMessage(SerialCommand::COLLECT, ObjectType::ALL, ObjectId::ALL);
-	mqtt.publish(topLog_Out, "serialCollector() cmd = " + String(SerialCommand::COLLECT) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
+	//mqtt.publish(topLog_Out, "serialCollector() cmd = " + String(SerialCommand::COLLECT) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
+	mqtt.publish(topLog, OUT, "serialCollector() cmd = " + String(SerialCommand::COLLECT) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
 }
 
 void serialReceiver() {
 	protocol.sendSerialMessage(SerialCommand::GET, ObjectType::ALL, ObjectId::ALL);
-	mqtt.publish(topLog_Out, "serialReceiver() cmd = " + String(SerialCommand::GET) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
+	//mqtt.publish(topLog_Out, "serialReceiver() cmd = " + String(SerialCommand::GET) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
+	mqtt.publish(topLog, OUT, "serialReceiver() cmd = " + String(SerialCommand::GET) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
 }
 
 
@@ -873,7 +831,7 @@ void processSerialMessage() {
 	uint8_t objId = protocol.getPayloadObjId();
 	//blink(SWITCH_PIN2, 1, 10);
 
-	mqtt.publish(topLog_Out, "processSerialMessage() cmd = " + String(cmd) + " objType=" + String(objType) + " objId=" + String(objId));
+	mqtt.publish(topLog, OUT, "processSerialMessage() cmd = " + String(cmd) + " objType=" + String(objType) + " objId=" + String(objId));
 
 	/*
     DEBUG4_PRINTLN();
@@ -1166,18 +1124,15 @@ void publishSwitches() {
 
 	for (byte i = 0; i < ActStates.sw_cnt; i++) {
 		if (ActStates.getSw(i))
-			mqtt.publish(topSw_Out + String(i+1), "ON");
+			mqtt.publish(topSw, (i+1), OUT, "ON");	//mqtt.publish(topSw_Out + String(i+1), "ON");
 		else
-			mqtt.publish(topSw_Out + String(i+1), "OFF");
+			mqtt.publish(topSw, (i+1), OUT, "OFF");	//mqtt.publish(topSw_Out + String(i+1), "OFF");
 	}
-
 
 	for (byte i = 0; i < ActStates.sw_cnt; i++) {
 		DEBUG4_PRINTF("swState%d is ",i);
 		DEBUG4_PRINTLN(ActStates.getSw(i));
 	}
-
-
 }
 
 float readDCByAddr(byte addr[]) {
@@ -1667,13 +1622,6 @@ void initModules() {
 		DEBUG4_PRINTLN("ActStates.init().start");
 		ActStates.init();
 		DEBUG4_PRINTLN("ActStates.init().end");
-
-		//AppSettings.load();
-		//DEBUG4_PRINTLN(AppSettings.print());
-		//DEBUG1_PRINTLN("Config loaded...");
-		//AppSettings.print();
-		//AppSettings.load_debug();
-
 
 		if (AppSettings.is_dht)
 			dht.begin();

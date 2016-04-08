@@ -46,16 +46,6 @@ private:
 
 
 public:
-/*
-	bool connect(String clientName);
-	bool subscribe(String topic);
-
-	String getServer();
-	int getPort();
-*/
-
-
-
 
 	MQTT(String broker_ip, int broker_port, MqttStringSubscriptionCallback delegate_callback = NULL);
 	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, MqttStringSubscriptionCallback delegate_callback = NULL);
@@ -79,6 +69,8 @@ public:
 	bool publish(String topic, MessageDirection direction, String message);
 	bool publish(String topic, byte index, MessageDirection direction, String message);
 
+	String getTopic(String topic, MessageDirection direction);
+	String getTopic(String topic, byte index, MessageDirection direction);
 
 };
 
