@@ -21,44 +21,54 @@ typedef enum {
 } MessageDirection;
 
 
-class MQTT {
+class MQTT: protected MqttClient{
 private:
-	String broker_ip;
-	int broker_port;
-	MqttClient* mqtt;
-
 	Timer timer;
 	unsigned int timer_shift;
 	unsigned int timer_interval;
+	TimerDelegate delegate_loop;
 
 	String topicMain;
 	String topicClient;
 	String topicSubscr;
 	String nameClient;
 
-	bool isFirstTime = true;
+	bool isConnected = false;
 
-	void init(String broker_ip, int broker_port, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
-	byte connect();
-	void disconnect();
+	void init(String broker_ip, int broker_port, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL, MqttStringSubscriptionCallback delegate_callback = NULL);
+
 
 	void loop();
 	void start();
 
+	byte connect();
+	void disconnect();
 
 
 public:
-	MQTT(String broker_ip, int broker_port);
-	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval);
-	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, String topicMain, String topicClient);
+/*
+	bool connect(String clientName);
+	bool subscribe(String topic);
+
+	String getServer();
+	int getPort();
+*/
+
+
+
+
+	MQTT(String broker_ip, int broker_port, MqttStringSubscriptionCallback delegate_callback = NULL);
+	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, MqttStringSubscriptionCallback delegate_callback = NULL);
+	MQTT(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, String topicMain, String topicClient, MqttStringSubscriptionCallback delegate_callback = NULL);
 	virtual ~MQTT();
 
+	TcpClientState getConnectionState() { return MqttClient::getConnectionState(); }
 
 	void setShift(unsigned int shift);
 	void setInterval(unsigned int interval);
 	void setTimer(unsigned int shift, unsigned int interval);
 
-	void startTimer();
+	void startTimer(TimerDelegate delegate_loop);
 	void stopTimer();
 
 
@@ -68,7 +78,7 @@ public:
 	bool publish(String fullTopic, String message);
 	bool publish(String topic, MessageDirection direction, String message);
 	bool publish(String topic, byte index, MessageDirection direction, String message);
-	void onMessageReceived(String topic, String message); // Forward declaration for our callback
+
 
 };
 

@@ -9,6 +9,7 @@
 #include <ActStates.h>
 #include <Logger.h>
 #include <LED.h>
+#include <MQTT.h>
 
 FTPServer ftp;
 
@@ -91,7 +92,10 @@ bool pushSwitched[10];
 
 
 // MQTT client
-MqttClient mqtt(AppSettings.broker_ip, AppSettings.broker_port==0?1883:AppSettings.broker_port, onMessageReceived);
+//MQTT mqtt(AppSettings.broker_ip, AppSettings.broker_port==0?1883:AppSettings.broker_port, onMessageReceived);
+MQTT mqtt(AppSettings.broker_ip, AppSettings.broker_port,
+		AppSettings.shift_mqtt, AppSettings.interval_mqtt,
+		AppSettings.main_topic, AppSettings.client_topic, onMessageReceived);
 
 String topSubscr;
 
@@ -507,22 +511,15 @@ void onMessageReceived(String topic, String message) {
 		DEBUG4_PRINTLN("topic is UNKNOWN");
 }
 
+/*
 void startMqttClient() {
 
 	DEBUG4_PRINTLN("_mqttConnect");
 	DEBUG4_PRINT("_mqtt_broker_ip=");
-	DEBUG4_PRINTLN(mqtt.server);
-	AppSettings.broker_ip = mqtt.server;
+	DEBUG4_PRINTLN(mqtt.getServer());
+	AppSettings.broker_ip = mqtt.getServer();
 	DEBUG4_PRINT("_mqtt_port=");
-	DEBUG4_PRINTLN(mqtt.port);
-
-	/*
-	Serial.print("*** MQTT host = ");
-	Serial.println(serverHost);
-	Serial.print("*** MQTT port = ");
-	Serial.println(serverPort);
-	 *
-	 */
+	DEBUG4_PRINTLN(mqtt.getPort());
 
 	// Run MQTT client
 	byte state = mqtt.getConnectionState();
@@ -535,6 +532,7 @@ void startMqttClient() {
 		mqtt.subscribe(topSubscr);
 	}
 }
+*/
 
 
 void publishSerialSw() {
@@ -619,7 +617,7 @@ void mqtt_loop() {
 	DEBUG4_PRINT(loopIndex);
 	DEBUG4_PRINTLN(" ***");
 
-	startMqttClient();
+	//startMqttClient();
 
 	// Published start message and mqtt client name
 	if (!isPubStart) {
@@ -1008,7 +1006,11 @@ void saveDefaultWifi()
 
 void startTimers() {
 	DEBUG4_PRINT("mqttTimer.. ");
-	timerMQTT.initializeMs(AppSettings.shift_mqtt, setMQTT).startOnce();
+	//timerMQTT.initializeMs(AppSettings.shift_mqtt, setMQTT).startOnce();
+
+	mqtt.startTimer(mqtt_loop);
+
+
 	delay(50);
 	DEBUG4_PRINTLN("armed");
 
@@ -1045,7 +1047,8 @@ void startTimers() {
 	DEBUG4_PRINT("MQTT.state=");
 	DEBUG4_PRINTLN(mqtt.getConnectionState());
 	DEBUG4_PRINTLN("Client name =\"" + mqttClientName + "\"");
-	startMqttClient();
+
+	//startMqttClient();
 	publishSwitches();
 
 	if (AppSettings.is_serial) {
