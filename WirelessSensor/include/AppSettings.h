@@ -14,7 +14,9 @@
 //#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
 #define APP_SETTINGS_FILE "settings.conf" // There is no leading point for security reasons :)
 #define HTTP_TRY_PERIOD 5000
-
+#ifndef SERIAL_BAUD_RATE
+#define SERIAL_BAUD_RATE 115200
+#endif
 
 struct ApplicationSettingsStorage
 {
