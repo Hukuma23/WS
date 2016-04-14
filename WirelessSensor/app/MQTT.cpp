@@ -8,6 +8,7 @@
 #include <MQTT.h>
 
 void MQTT::init(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, MqttStringSubscriptionCallback delegate_callback) {
+	DEBUG4_PRINTLN("*** MQTT Constructor ***");
 	this->timer_shift = shift;
 	this->timer_interval = interval;
 
@@ -112,8 +113,16 @@ bool MQTT::publish(String topic, MessageDirection direction, String message) {
 }
 
 bool MQTT::publish(String topic, byte index, MessageDirection direction, String message) {
+	DEBUG4_PRINTLN("mqtt.publish3");
+
 	if (!isConnected)
 		return false;
+
+	DEBUG4_PRINTLN("mqtt.publish3 will send");
+
+	DEBUG4_PRINTLN("mqtt.p3: topic=\"" + topic +"\"");
+	DEBUG4_PRINTF("mqtt.p3: index=%d, ", index);
+	DEBUG4_PRINTLN("msg=\"" + message +"\"");
 
 	return MqttClient::publish(getTopic(topic, index, direction), message);
 }
@@ -124,4 +133,8 @@ String MQTT::getTopic(String topic, MessageDirection direction) {
 
 String MQTT::getTopic(String topic, byte index, MessageDirection direction) {
 	return (topicMain + (direction==IN?"/in/":"/out/") + topicClient + topic + String(index));
+}
+
+String MQTT::getName() {
+	return this->nameClient;
 }

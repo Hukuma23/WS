@@ -61,7 +61,6 @@ public:
 	void startTimer(TimerDelegate delegate_loop);
 	void stopTimer();
 
-
 	void setTopic(String topicMain, String topicClient);
 
 
@@ -71,6 +70,8 @@ public:
 
 	String getTopic(String topic, MessageDirection direction);
 	String getTopic(String topic, byte index, MessageDirection direction);
+
+	String getName();
 
 };
 
