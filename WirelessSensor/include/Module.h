@@ -35,7 +35,7 @@ protected:
 
 	void start();
 	Sensor();
-	Sensor(unsigned int shift, unsigned int interval, MQTT* &mqtt);
+	Sensor(unsigned int shift, unsigned int interval, MQTT &mqtt);
 
 public:
 
@@ -52,7 +52,7 @@ public:
 	void startTimer();
 	void stopTimer();
 
-	void setMqtt(MQTT* &mqtt);
+	void setMqtt(MQTT &mqtt);
 };
 
 class SensorDHT: protected DHT, public Sensor {
@@ -64,7 +64,7 @@ private:
 
 public:
 	SensorDHT(byte pin, byte dhtType);
-	SensorDHT(byte pin, byte dhtType, MQTT* &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	SensorDHT(byte pin, byte dhtType, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorDHT();
 	void compute();
 	void publish();
@@ -81,7 +81,7 @@ private:
 
 public:
 	SensorBMP(byte pin, byte count);
-	SensorBMP(byte pin, byte count, MQTT* &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	SensorBMP(byte pin, byte count, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorBMP();
 	void compute();
 	void publish();
@@ -93,18 +93,20 @@ class SensorDS: protected OneWire, public Sensor {
 
 private:
 	byte count = 0;
-	float *temperature;
+	float* temperature;
 	float readDCByAddr(byte addr[]);
 	void init(byte pin, byte count);
 
 public:
 	SensorDS(byte pin, byte count);
-	SensorDS(byte pin, byte count, MQTT* &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	SensorDS(byte pin, byte count, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+
 	~SensorDS();
 	void compute();
 	void publish();
 	byte getCount();
 	float getTemperature(byte num);
+	void print();
 };
 
 #endif /* INCLUDE_MODULE_H_ */
