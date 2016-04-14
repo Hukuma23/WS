@@ -10,6 +10,7 @@
 #include <Logger.h>
 #include <LED.h>
 #include <MQTT.h>
+#include <Module.h>
 
 FTPServer ftp;
 
@@ -18,13 +19,10 @@ rBootHttpUpdate* otaUpdater = 0;
 
 //extern void wdt_feed (void);
 void onMessageReceived(String topic, String message); // Forward declaration for our callback
-void readOneWire(void);
-void readDHT(void);
 void readBarometer(void);
 void publishSwitches(void);
 void checkWifi(void);
-void OtaUpdateSW();
-void OtaUpdateAll();
+void OtaUpdate(bool isSpiffs);
 void switchBootRom();
 void ready();
 void connectOk();
@@ -33,10 +31,7 @@ void stopAllTimers();
 String ShowInfo();
 void initModules();
 
-Timer timerMQTT;
-Timer timerDHT;
 Timer timerBMP;
-Timer timerDS;
 Timer timerWIFI;
 Timer timerSerialListener;
 Timer timerListener;
@@ -48,7 +43,7 @@ bool initHttp = false;
 // wifi vars block
 bool isList = false;
 long time1, time2;
-String *wifilist;
+String* wifilist;
 uint8_t list_count;
 // end wifi vars block
 
@@ -68,14 +63,10 @@ float bmpTemp;
 long bmpPress;
 
 // DS object
-//OneWire ds(DS_PIN);
-OneWire ds(AppSettings.ds);
+SensorDS* dsSensor;
 
 // DHT object
-//DHT dht(DHT_PIN, DHT22);
-DHT dht(AppSettings.dht, DHT22);
-float dhtTemp;
-float dhtHum;
+SensorDHT* dhtSensor;
 
 
 // Serial
@@ -92,10 +83,7 @@ bool pushSwitched[10];
 
 
 // MQTT client
-//MQTT mqtt(AppSettings.broker_ip, AppSettings.broker_port==0?1883:AppSettings.broker_port, onMessageReceived);
-MQTT mqtt(AppSettings.broker_ip, AppSettings.broker_port,
-		AppSettings.shift_mqtt, AppSettings.interval_mqtt,
-		AppSettings.main_topic, AppSettings.client_topic, onMessageReceived);
+MQTT* mqtt;
 
 String topSubscr;
 
@@ -256,12 +244,12 @@ void var_init() {
 	sTopSw = "ssw";
 	// * Serial end *
 
-	topDHTTemp = "Temperature";
-	topDHTHum = "Humidity";
+	topDHTTemp = "dht_t";
+	topDHTHum = "dht_h";
 
-	topDSTemp = "DS_Temperature";
-	topBMPTemp = "BMP_Temperature";
-	topBMPPress = "BMP_Pressure";
+	topDSTemp = "ds_t";
+	topBMPTemp = "bmp_t";
+	topBMPPress = "bmp_p";
 
 
 	topCfg = "config";
@@ -278,8 +266,8 @@ void var_init() {
 	bmpTemp = -255;
 	bmpPress = -255;
 
-	dhtTemp = -255;
-	dhtHum = -255;
+	//dhtTemp = -255;
+	//dhtHum = -255;
 
 
 	//Serial
@@ -363,30 +351,30 @@ void onMessageReceived(String topic, String message) {
 	// SW
 	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
 		//if (topic.equals((topSw_In+String(i+1)))) {
-		if (topic.equals(mqtt.getTopic(topSw, (i+1), IN))) {
+		if (topic.equals(mqtt->getTopic(topSw, (i+1), IN))) {
 			if (message.equals("ON")) {
 				turnSw(i, HIGH);
 			} else if (message.equals("OFF")) {
 				turnSw(i, LOW);
 			} else
-				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt.getTopic(topSw, (i+1), IN)).c_str());
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(topSw, (i+1), IN)).c_str());
 		}
 	}
 
 	// *** Serial block ***
 
 	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
-		if (topic.equals(mqtt.getTopic(sTopSw, (i+1), IN))) {
+		if (topic.equals(mqtt->getTopic(sTopSw, (i+1), IN))) {
 			if (message.equals("ON")) {
 				turnSsw(i, HIGH);
 			} else if (message.equals("OFF")) {
 				turnSsw(i, LOW);
 			} else
-				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt.getTopic(sTopSw, (i+1), IN)).c_str());
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(sTopSw, (i+1), IN)).c_str());
 		}
 	}
 	// *** Serial block end ***
-	if (topic.equals(mqtt.getTopic(topCfg, IN))) {
+	if (topic.equals(mqtt->getTopic(topCfg, IN))) {
 
 		int msgLen = message.length() + 1;
 		DEBUG4_PRINT("msgLen = ");
@@ -416,27 +404,27 @@ void onMessageReceived(String topic, String message) {
 		if (cmd.equals("sw_update")) {
 			stopAllTimers();
 			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware only now");
-			mqtt.publish(topCfg, OUT, "Will stop all timers and UPDATE on the air firmware only now");
-			OtaUpdateSW();
+			mqtt->publish(topCfg, OUT, "Will stop all timers and UPDATE on the air firmware only now");
+			OtaUpdate(false); //OtaUpdateSW();
 		}
 		else if (cmd.equals("sw_update_all")) {
 			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware and spiffs now");
-			mqtt.publish(topCfg, OUT, "Will stop all timers and UPDATE on the air firmware and spiffs now");
+			mqtt->publish(topCfg, OUT, "Will stop all timers and UPDATE on the air firmware and spiffs now");
 			stopAllTimers();
-			OtaUpdateAll();
+			OtaUpdate(true);
 		}
 		else if ((cmd.equals("version")) || (cmd.equals("ver"))) {
 			//mqtt.publish(topCfg_Out, AppSettings.version);
-			mqtt.publish(topCfg, OUT, AppSettings.version);
+			mqtt->publish(topCfg, OUT, AppSettings.version);
 		}
 		else if (cmd.equals("restart")) {
 			//mqtt.publish(topCfg_Out, "Will restart now");
-			mqtt.publish(topCfg, OUT, "Will restart now");
+			mqtt->publish(topCfg, OUT, "Will restart now");
 			System.restart();
 		}
 		else if (cmd.equals("conf_del")) {
 			//mqtt.publish(topCfg_Out, "Delete config now");
-			mqtt.publish(topCfg, OUT, "Will delete config now");
+			mqtt->publish(topCfg, OUT, "Will delete config now");
 			AppSettings.deleteConf();
 		}
 		else if (cmd.equals("switch")) {
@@ -449,21 +437,21 @@ void onMessageReceived(String topic, String message) {
 			result += String(after);
 			result += ". Then will restart\r\n";
 			//mqtt.publish(topCfg_Out, result);
-			mqtt.publish(topCfg, OUT, result);
+			mqtt->publish(topCfg, OUT, result);
 			switchBootRom();
 		}
 		else if (cmd.equals("info")) {
 			//mqtt.publish(topCfg_Out, ShowInfo());
-			mqtt.publish(topCfg, OUT, ShowInfo());
+			mqtt->publish(topCfg, OUT, ShowInfo());
 		}
 		else if (cmd.equals("uptime")) {
 			//mqtt.publish(topCfg_Out, "Loopindex = " + String(loopIndex));
-			mqtt.publish(topCfg, OUT, "Loopindex = " + String(loopIndex));
+			mqtt->publish(topCfg, OUT, "Loopindex = " + String(loopIndex));
 
 			String strUptime = uptime();
 			DEBUG4_PRINTLN("Uptime is " + strUptime);
 			//mqtt.publish(topCfg_Out, "Uptime is " + strUptime);
-			mqtt.publish(topCfg, OUT, "Uptime is " + strUptime);
+			mqtt->publish(topCfg, OUT, "Uptime is " + strUptime);
 		}
 		else if (cmd.equals("reboot")) {
 			DEBUG4_PRINTLN("REBOOT stub routine");
@@ -473,27 +461,27 @@ void onMessageReceived(String topic, String message) {
 			String updList = "Will try to load Settings by http";
 			AppSettings.loadHttp();
 			//mqtt.publish(topCfg_Out, updList);
-			mqtt.publish(topCfg, OUT, updList);
+			mqtt->publish(topCfg, OUT, updList);
 
 		}
 		else if (cmd.equals("conf_save")) {
 			AppSettings.save();
 			//mqtt.publish(topCfg_Out, "Settings saved.");
-			mqtt.publish(topCfg, OUT, "Settings saved.");
+			mqtt->publish(topCfg, OUT, "Settings saved.");
 		}
 		else if (cmd.equals("act_print")) {
 			String strPrint = ActStates.print();
 			DEBUG4_PRINTLN(strPrint);
 			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrint.length());
 			//mqtt.publish(topCfg_Out, strPrint);
-			mqtt.publish(topCfg, OUT, strPrint);
+			mqtt->publish(topCfg, OUT, strPrint);
 		}
 		else if (cmd.equals("act_printf")) {
 			String strPrintf = ActStates.printf();
 			DEBUG4_PRINTLN(strPrintf);
 			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrintf.length());
 			//mqtt.publish(topCfg_Out, strPrintf);
-			mqtt.publish(topCfg, OUT, strPrintf);
+			mqtt->publish(topCfg, OUT, strPrintf);
 		}
 		else
 			DEBUG4_PRINTLN("Topic matched, command is UNKNOWN");
@@ -506,10 +494,10 @@ void publishSerialSw() {
 
 	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
 		if (ActStates.ssw[i])
-			mqtt.publish(sTopSw, (i+1), OUT, "ON");	//mqtt.publish(sTopSw_Out+String(i+1), "ON");
+			mqtt->publish(sTopSw, (i+1), OUT, "ON");	//mqtt.publish(sTopSw_Out+String(i+1), "ON");
 
 		else
-			mqtt.publish(sTopSw, (i+1), OUT, "OFF");	//mqtt.publish(sTopSw_Out+String(i+1), "OFF");
+			mqtt->publish(sTopSw, (i+1), OUT, "OFF");	//mqtt.publish(sTopSw_Out+String(i+1), "OFF");
 	}
 
 	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
@@ -526,25 +514,25 @@ void publishSerial() {
 
 	// Publish DHT
 	if (sDHTTemp != UNDEF) {
-		result = mqtt.publish("sdht_t", OUT, String(sDHTTemp));	//result = mqtt.publish(getOutTopic("sdht_t"), String(sDHTTemp));
+		result = mqtt->publish("sdht_t", OUT, String(sDHTTemp));	//result = mqtt.publish(getOutTopic("sdht_t"), String(sDHTTemp));
 		if (result)
 			sDHTTemp = UNDEF;
 	}
 
 	if (sDHTHum != UNDEF) {
-		result = mqtt.publish("sdht_h", OUT, String(sDHTHum));	//result = mqtt.publish(getOutTopic("sdht_h"), String(sDHTHum));
+		result = mqtt->publish("sdht_h", OUT, String(sDHTHum));	//result = mqtt.publish(getOutTopic("sdht_h"), String(sDHTHum));
 		if (result)
 			sDHTHum = UNDEF;
 	}
 
 	// Publish BMP
 	if (sBMPTemp != UNDEF) {
-		result = mqtt.publish("sbmp_t", OUT, String(sBMPTemp));	//result = mqtt.publish(getOutTopic("sbmp_t"), String(sBMPTemp));
+		result = mqtt->publish("sbmp_t", OUT, String(sBMPTemp));	//result = mqtt.publish(getOutTopic("sbmp_t"), String(sBMPTemp));
 		if (result)
 			sBMPTemp = UNDEF;
 	}
 	if (sBMPPress != UNDEF) {
-		result = mqtt.publish("sbmp_p", OUT, String(sBMPPress));	//result = mqtt.publish(getOutTopic("sbmp_p"), String(sBMPPress));
+		result = mqtt->publish("sbmp_p", OUT, String(sBMPPress));	//result = mqtt.publish(getOutTopic("sbmp_p"), String(sBMPPress));
 		if (result)
 			sBMPPress = UNDEF;
 	}
@@ -553,7 +541,7 @@ void publishSerial() {
 	int dsSize = sizeof sDSTemp / sizeof sDSTemp[0];
 	for (int i=0; i < dsSize; i++) {
 		if (sDSTemp[i] != UNDEF) {
-			result = mqtt.publish("sds_t", i, OUT, String(sDSTemp[i]));	//result = mqtt.publish(getOutTopic("sds_t") + String(i), String(sDSTemp[i]));
+			result = mqtt->publish("sds_t", i, OUT, String(sDSTemp[i]));	//result = mqtt.publish(getOutTopic("sds_t") + String(i), String(sDSTemp[i]));
 			if (result)
 				sDSTemp[i] = UNDEF;
 		}
@@ -561,12 +549,12 @@ void publishSerial() {
 
 	// Publish Water
 	if ((sWaterCold > 0) && (sWaterCold != UNDEF)) {
-		result = mqtt.publish("s_wc", OUT, String(sWaterCold));	//result = mqtt.publish(getOutTopic("s_wc"), String(sWaterCold));
+		result = mqtt->publish("s_wc", OUT, String(sWaterCold));	//result = mqtt.publish(getOutTopic("s_wc"), String(sWaterCold));
 		if (result)
 			sWaterCold = UNDEF;
 	}
 	if ((sWaterHot > 0) && (sWaterHot != UNDEF)) {
-		result = mqtt.publish("s_wh", OUT, String(sWaterHot));	//result = mqtt.publish(getOutTopic("s_wh"), String(sWaterHot));
+		result = mqtt->publish("s_wh", OUT, String(sWaterHot));	//result = mqtt.publish(getOutTopic("s_wh"), String(sWaterHot));
 		if (result)
 			sWaterHot = UNDEF;
 	}
@@ -588,70 +576,12 @@ void mqtt_loop() {
 	publishSwitches();
 
 	system_soft_wdt_stop();
-	// Publish DS Temperature
-	DEBUG4_PRINTLN();
-	if (dsTemp[0] > 0) {
-		for (int i = 1; i <= dsTemp[0]; i++) {
-			DEBUG4_PRINT("DS Temperature ");
-			DEBUG4_PRINT(i);
-			DEBUG4_PRINT(" ");
-
-			if (dsTemp[i] > -255) {
-				DEBUG4_PRINT(dsTemp[i]);
-				DEBUG4_PRINT(" C... ");
-
-				bool result = mqtt.publish(topDSTemp, i, OUT, String(dsTemp[i]));	//bool result = mqtt.publish(topDSTemp_Out + String(i), String(dsTemp[i]));
-
-				DEBUG4_PRINT("Published: ");
-				DEBUG4_PRINTLN(result);
-
-				if (result == true)
-					dsTemp[i] = -255;
-			} else
-				DEBUG4_PRINTLN("ignore");
-		}
-	} else
-		DEBUG4_PRINTLN("DS ignore");
-
-	system_soft_wdt_restart();
-
-	// Publish DHT22 data
-	DEBUG4_PRINTLN();
-	DEBUG4_PRINT("DHT Temperature ");
-	if (dhtTemp > -255) {
-		bool result = mqtt.publish(topDHTTemp, OUT, String(dhtTemp));	//bool result = mqtt.publish(topTemp1_Out, String(dhtTemp));
-		DEBUG4_PRINT(" ");
-		DEBUG4_PRINT(dhtTemp);
-		DEBUG4_PRINT(" C... ");
-		DEBUG4_PRINT("Published: ");
-		DEBUG4_PRINTLN(result);
-
-		if (result == true)
-			dhtTemp = -255;
-	} else
-		DEBUG4_PRINTLN("ignore");
-
-	DEBUG4_PRINT("DHT Humidity ");
-	if (dhtHum > -255) {
-		bool result = mqtt.publish(topDHTHum, OUT, String(dhtHum));	//bool result = mqtt.publish(topHum1_Out, String(dhtHum));
-		DEBUG4_PRINT(" ");
-		DEBUG4_PRINT(dhtHum);
-		DEBUG4_PRINT(" %... ");
-		DEBUG4_PRINT("Published: ");
-		DEBUG4_PRINTLN(result);
-
-		if (result == true)
-			dhtHum = -255;
-	} else
-		DEBUG4_PRINTLN("ignore");
-
-	system_soft_wdt_stop();
 
 	// Publish BMP180 data
 	DEBUG4_PRINTLN();
 	DEBUG4_PRINT("BMP Temperature ");
 	if (bmpTemp > -255) {
-		bool result = mqtt.publish(topBMPTemp, OUT, String(bmpTemp));	//bool result = mqtt.publish(topBMPTemp_Out, String(bmpTemp));
+		bool result = mqtt->publish(topBMPTemp, OUT, String(bmpTemp));	//bool result = mqtt.publish(topBMPTemp_Out, String(bmpTemp));
 		DEBUG4_PRINT(" ");
 		DEBUG4_PRINT(bmpTemp);
 		DEBUG4_PRINT(" C... ");
@@ -666,7 +596,7 @@ void mqtt_loop() {
 	DEBUG4_PRINT("BMP Pressure ");
 	if (bmpPress > -255) {
 
-		bool result = mqtt.publish(topBMPPress, OUT, String(bmpPress));	//bool result = mqtt.publish(topBMPPress_Out, String(bmpPress));
+		bool result = mqtt->publish(topBMPPress, OUT, String(bmpPress));	//bool result = mqtt.publish(topBMPPress_Out, String(bmpPress));
 		DEBUG4_PRINT(" ");
 		DEBUG4_PRINT(bmpPress);
 		DEBUG4_PRINT(" Pa... ");
@@ -701,13 +631,13 @@ void mqtt_loop() {
 void serialCollector() {
 	protocol.sendSerialMessage(SerialCommand::COLLECT, ObjectType::ALL, ObjectId::ALL);
 	//mqtt.publish(topLog_Out, "serialCollector() cmd = " + String(SerialCommand::COLLECT) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
-	mqtt.publish(topLog, OUT, "serialCollector() cmd = " + String(SerialCommand::COLLECT) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
+	mqtt->publish(topLog, OUT, "serialCollector() cmd = " + String(SerialCommand::COLLECT) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
 }
 
 void serialReceiver() {
 	protocol.sendSerialMessage(SerialCommand::GET, ObjectType::ALL, ObjectId::ALL);
 	//mqtt.publish(topLog_Out, "serialReceiver() cmd = " + String(SerialCommand::GET) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
-	mqtt.publish(topLog, OUT, "serialReceiver() cmd = " + String(SerialCommand::GET) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
+	mqtt->publish(topLog, OUT, "serialReceiver() cmd = " + String(SerialCommand::GET) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
 }
 
 
@@ -732,13 +662,6 @@ void setCheckWifi() {
 	}
 }
 
-void setReadDHT() {
-	if (AppSettings.is_dht) {
-		timerDHT.initializeMs(AppSettings.interval_dht, readDHT).start();
-		DEBUG4_PRINTLN("*** DHT timer done!");
-	}
-}
-
 void setReadBMP() {
 	if (AppSettings.is_bmp) {
 		timerBMP.initializeMs(AppSettings.interval_bmp, readBarometer).start();
@@ -746,27 +669,29 @@ void setReadBMP() {
 	}
 }
 
-void setReadOneWire() {
-	if (AppSettings.is_ds) {
-		timerDS.initializeMs(AppSettings.interval_ds, readOneWire).start();
-		DEBUG4_PRINTLN("*** DS OneWire timer done!");
-	}
-}
-
+/*
 void setMQTT() {
 	DEBUG4_PRINTLN("*** MQTT timer done!");
 	timerMQTT.initializeMs(AppSettings.interval_mqtt, mqtt_loop).start();
 }
+ */
 
 void stopAllTimers(void) {
 	DEBUG4_PRINTLN("MQTT will close connection and ALL timers will STOPPED now!");
 
 	//mqtt.close(); //Close MQTT connection with server
 
-	timerMQTT.stop();
-	timerDHT.stop();
+	if (mqtt != NULL)
+		mqtt->stopTimer();
+
+	if (dsSensor != NULL)
+		dsSensor->stopTimer();
+
+	if (dhtSensor != NULL)
+		dhtSensor->stopTimer();
+
 	timerBMP.stop();
-	timerDS.stop();
+
 	timerWIFI.stop();
 	timerSerialListener.stop();
 	timerListener.stop();
@@ -831,7 +756,7 @@ void processSerialMessage() {
 	uint8_t objId = protocol.getPayloadObjId();
 	//blink(SWITCH_PIN2, 1, 10);
 
-	mqtt.publish(topLog, OUT, "processSerialMessage() cmd = " + String(cmd) + " objType=" + String(objType) + " objId=" + String(objId));
+	mqtt->publish(topLog, OUT, "processSerialMessage() cmd = " + String(cmd) + " objType=" + String(objType) + " objId=" + String(objId));
 
 	/*
     DEBUG4_PRINTLN();
@@ -963,24 +888,27 @@ void saveDefaultWifi()
 
 
 void startTimers() {
-	DEBUG4_PRINT("mqttTimer.. ");
-	//timerMQTT.initializeMs(AppSettings.shift_mqtt, setMQTT).startOnce();
 
-	mqtt.startTimer(mqtt_loop);
+	if (mqtt != NULL) {
+		DEBUG4_PRINT("mqttTimer.. ");
+		mqtt->startTimer(mqtt_loop); //timerMQTT.initializeMs(AppSettings.shift_mqtt, setMQTT).startOnce();
+		delay(50);
+		DEBUG4_PRINTLN("armed");
+	}
 
+	if (dsSensor != NULL) {
+		DEBUG4_PRINT("dsTimer.. ");
+		dsSensor->startTimer(); //timerDS.initializeMs(AppSettings.shift_ds, setReadOneWire).startOnce();
+		delay(50);
+		DEBUG4_PRINTLN("armed");
+	}
 
-	delay(50);
-	DEBUG4_PRINTLN("armed");
-
-	DEBUG4_PRINT("dsTimer.. ");
-	timerDS.initializeMs(AppSettings.shift_ds, setReadOneWire).startOnce();
-	delay(50);
-	DEBUG4_PRINTLN("armed");
-
-	DEBUG4_PRINT("dhtTimer.. ");
-	timerDHT.initializeMs(AppSettings.shift_dht, setReadDHT).startOnce();
-	delay(50);
-	DEBUG4_PRINTLN("armed");
+	if (dhtSensor != NULL) {
+		DEBUG4_PRINT("dhtTimer.. ");
+		dhtSensor->startTimer();	//timerDHT.initializeMs(AppSettings.shift_dht, setReadDHT).startOnce();
+		delay(50);
+		DEBUG4_PRINTLN("armed");
+	}
 
 	DEBUG4_PRINT("bmpTimer.. ");
 	timerBMP.initializeMs(AppSettings.shift_bmp, setReadBMP).startOnce();
@@ -1003,7 +931,7 @@ void startTimers() {
 	DEBUG4_PRINTLN("armed");
 
 	DEBUG4_PRINT("MQTT.state=");
-	DEBUG4_PRINTLN(mqtt.getConnectionState());
+	DEBUG4_PRINTLN(mqtt->getConnectionState());
 	DEBUG4_PRINTLN("Client name =\"" + mqttClientName + "\"");
 
 	//startMqttClient();
@@ -1092,167 +1020,19 @@ void connectFail() {
 	//WifiStation.waitConnection(connectOk, 20, connectFail); // Repeat and check again
 }
 
-
-void readDHT(void) {
-
-	DEBUG4_PRINTLN("_readDHT");
-	float humidity = dht.readHumidity();
-	float temperature = dht.readTemperature();
-
-	// check if returns are valid, if they are NaN (not a number) then something went wrong!
-	if (isnan(temperature) || isnan(humidity)) {
-		DEBUG4_PRINTLN("Failed to read from DHT");
-		dhtTemp = -255;
-		dhtHum = -255;
-		return;
-	} else {
-		DEBUG4_PRINT("Humidity: ");
-		DEBUG4_PRINT(humidity);
-		DEBUG4_PRINT(" %\t");
-		DEBUG4_PRINT("Temperature: ");
-		DEBUG4_PRINT(temperature);
-		DEBUG4_PRINTLN(" *C");
-		dhtTemp = temperature;
-		dhtHum = humidity;
-
-		return;
-	}
-
-}
-
 void publishSwitches() {
 
 	for (byte i = 0; i < ActStates.sw_cnt; i++) {
 		if (ActStates.getSw(i))
-			mqtt.publish(topSw, (i+1), OUT, "ON");	//mqtt.publish(topSw_Out + String(i+1), "ON");
+			mqtt->publish(topSw, (i+1), OUT, "ON");	//mqtt.publish(topSw_Out + String(i+1), "ON");
 		else
-			mqtt.publish(topSw, (i+1), OUT, "OFF");	//mqtt.publish(topSw_Out + String(i+1), "OFF");
+			mqtt->publish(topSw, (i+1), OUT, "OFF");	//mqtt.publish(topSw_Out + String(i+1), "OFF");
 	}
 
 	for (byte i = 0; i < ActStates.sw_cnt; i++) {
 		DEBUG4_PRINTF("swState%d is ",i);
 		DEBUG4_PRINTLN(ActStates.getSw(i));
 	}
-}
-
-float readDCByAddr(byte addr[]) {
-
-	DEBUG4_PRINTLN("_readDCByAddr");
-	byte i;
-	byte cnt = 1;
-	byte present = 0;
-	byte type_s;
-	byte data[12];
-	float celsius, fahrenheit;
-
-	DEBUG4_PRINT("Thermometer ROM =");
-	for (i = 0; i < 8; i++) {
-		DEBUG4_WRITE(' ');
-		DEBUG4_PRINTHEX(addr[i]);
-	}
-
-	if (OneWire::crc8(addr, 7) != addr[7]) {
-		DEBUG4_PRINTLN("CRC is not valid!");
-		return -255;
-	}
-	DEBUG4_PRINTLN();
-
-	// the first ROM byte indicates which chip
-	switch (addr[0]) {
-	case 0x10:
-		DEBUG4_PRINTLN("  Chip = DS18S20"); // or old DS1820
-		type_s = 1;
-		break;
-	case 0x28:
-		DEBUG4_PRINTLN("  Chip = DS18B20");
-		type_s = 0;
-		break;
-	case 0x22:
-		DEBUG4_PRINTLN("  Chip = DS1822");
-		type_s = 0;
-		break;
-	default:
-		DEBUG4_PRINTLN("Device is not a DS18x20 family device.");
-		return -255;
-	}
-
-	ds.reset();
-	ds.select(addr);
-	ds.write(0x44, 1); // start conversion, with parasite power on at the end
-
-	delay(1000); // maybe 750ms is enough, maybe not
-	// we might do a ds.depower() here, but the reset will take care of it.
-
-	present = ds.reset();
-	ds.select(addr);
-	ds.write(0xBE); // Read Scratchpad
-
-	DEBUG4_PRINT("  Data = ");
-	DEBUG4_PRINTHEX(present);
-	DEBUG4_PRINT(" ");
-	for (i = 0; i < 9; i++) {
-		// we need 9 bytes
-		data[i] = ds.read();
-		DEBUG4_PRINTHEX(data[i]);
-		DEBUG4_PRINT(" ");
-	}
-	DEBUG4_PRINT(" CRC=");
-	DEBUG4_PRINTHEX(OneWire::crc8(data, 8));
-	DEBUG4_PRINTLN();
-
-	// Convert the data to actual temperature
-	// because the result is a 16 bit signed integer, it should
-	// be stored to an "int16_t" type, which is always 16 bits
-	// even when compiled on a 32 bit processor.
-	int16_t raw = (data[1] << 8) | data[0];
-	if (type_s) {
-		raw = raw << 3; // 9 bit resolution default
-		if (data[7] == 0x10) {
-			// "count remain" gives full 12 bit resolution
-			raw = (raw & 0xFFF0) + 12 - data[6];
-		}
-	} else {
-		byte cfg = (data[4] & 0x60);
-		// at lower res, the low bits are undefined, so let's zero them
-		if (cfg == 0x00)
-			raw = raw & ~7; // 9 bit resolution, 93.75 ms
-		else if (cfg == 0x20)
-			raw = raw & ~3; // 10 bit res, 187.5 ms
-		else if (cfg == 0x40)
-			raw = raw & ~1; // 11 bit res, 375 ms
-		//// default is 12 bit resolution, 750 ms conversion time
-	}
-
-	celsius = (float) raw / 16.0;
-	fahrenheit = celsius * 1.8 + 32.0;
-	DEBUG4_PRINT("  Temperature = ");
-	DEBUG4_PRINT(celsius);
-	DEBUG4_PRINT(" Celsius, ");
-	DEBUG4_PRINTLN();
-
-	return celsius;
-
-}
-
-void readOneWire() {
-
-	DEBUG4_PRINTLN("_readOneWire");
-
-	byte addr[8];
-	byte cnt = 1;
-	float celsius, fahrenheit;
-	system_soft_wdt_stop();
-	while (ds.search(addr)) {
-
-		celsius = readDCByAddr(addr);
-		if (celsius > -100.0)
-			dsTemp[cnt++] = celsius;
-	}
-
-	dsTemp[0] = cnt - 1;
-	system_soft_wdt_restart();
-	return;
-
 }
 
 void readBarometer(void) {
@@ -1337,8 +1117,17 @@ void checkWifi(void) {
 
 	//Stop timers
 	DEBUG4_PRINT("All Timers are...");
-	timerMQTT.stop();
-	timerDHT.stop();
+
+	if (mqtt != NULL)
+		mqtt->stopTimer();
+
+	if (dsSensor != NULL)
+		dsSensor->stopTimer();
+
+	if (dhtSensor != NULL)
+		dhtSensor->stopTimer();
+
+
 	timerBMP.stop();
 	timerWIFI.stop();
 	DEBUG4_PRINTLN(" stopped");
@@ -1440,6 +1229,7 @@ void OtaUpdate_CallBack(bool result) {
 	}
 }
 
+/*
 void OtaUpdateSW() {
 
 	uint8 slot;
@@ -1477,8 +1267,9 @@ void OtaUpdateSW() {
 	// start update
 	otaUpdater->start();
 }
+ */
 
-void OtaUpdateAll() {
+void OtaUpdate(bool isSpiffs) {
 
 	uint8 slot;
 	rboot_config bootconf;
@@ -1508,13 +1299,15 @@ void OtaUpdateAll() {
 #endif
 
 #ifndef DISABLE_SPIFFS
-	// use user supplied values (defaults for 4mb flash in makefile)
-	if (slot == 0) {
-		otaUpdater->addItem(RBOOT_SPIFFS_0, AppSettings.spiffs);
-		//otaUpdater->addItem(RBOOT_SPIFFS_0, SPIFFS_URL);
-	} else {
-		otaUpdater->addItem(RBOOT_SPIFFS_1, AppSettings.spiffs);
-		//otaUpdater->addItem(RBOOT_SPIFFS_1, SPIFFS_URL);
+	if (isSpiffs) {
+		// use user supplied values (defaults for 4mb flash in makefile)
+		if (slot == 0) {
+			otaUpdater->addItem(RBOOT_SPIFFS_0, AppSettings.spiffs);
+			//otaUpdater->addItem(RBOOT_SPIFFS_0, SPIFFS_URL);
+		} else {
+			otaUpdater->addItem(RBOOT_SPIFFS_1, AppSettings.spiffs);
+			//otaUpdater->addItem(RBOOT_SPIFFS_1, SPIFFS_URL);
+		}
 	}
 #endif
 
@@ -1623,11 +1416,17 @@ void initModules() {
 		ActStates.init();
 		DEBUG4_PRINTLN("ActStates.init().end");
 
-		if (AppSettings.is_dht)
-			dht.begin();
+		mqtt = new MQTT(AppSettings.broker_ip, AppSettings.broker_port,AppSettings.shift_mqtt, AppSettings.interval_mqtt,AppSettings.main_topic, AppSettings.client_topic, onMessageReceived);
 
-		if (AppSettings.is_ds)
-			ds.begin(); // It's required for one-wire initialization!
+		DEBUG4_PRINTF("pmqtt=\"%p\"", mqtt);
+
+		if (AppSettings.is_dht) {
+			dhtSensor = new SensorDHT(AppSettings.dht, DHT22, *mqtt, AppSettings.shift_dht, AppSettings.interval_dht);
+		}
+
+		if (AppSettings.is_ds) {
+			dsSensor = new SensorDS(AppSettings.ds, 1, *mqtt, AppSettings.shift_ds, AppSettings.interval_ds);
+		}
 
 		if (AppSettings.is_bmp) { // I2C init
 			//Wire.pins(SCL_PIN, SDA_PIN);
