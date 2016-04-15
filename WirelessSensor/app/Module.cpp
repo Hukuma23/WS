@@ -32,10 +32,12 @@ void Sensor::setTimer(unsigned int shift, unsigned int interval) {
 }
 
 void Sensor::startTimer() {
+	DEBUG4_PRINTLN("Sensor::startTimer");
 	timer.initializeMs(timer_shift, TimerDelegate(&Sensor::start, this)).startOnce();
 }
 
 void Sensor::stopTimer() {
+	DEBUG4_PRINTLN("Sensor::stopTimer");
 	timer.stop();
 }
 
@@ -44,6 +46,7 @@ void Sensor::setMqtt(MQTT &mqtt) {
 }
 
 void Sensor::loop() {
+	DEBUG4_PRINTLN("Sensor::loop");
 	if (needCompute) {
 		compute();
 		needCompute = !needCompute;
@@ -132,6 +135,7 @@ void SensorDHT::publish() {
 SensorBMP::~SensorBMP() {}
 
 void SensorBMP::init(byte scl, byte sda) {
+	DEBUG4_PRINTF2("SensorBMP.init scl=%d, sda=%d", scl, sda); DEBUG4_PRINTLN();
 	Wire.pins(scl, sda);
 	Wire.begin();
 }
@@ -139,11 +143,11 @@ void SensorBMP::init(byte scl, byte sda) {
 SensorBMP::SensorBMP(byte scl, byte sda) : BMP180(), Sensor(){
 	init(scl, sda);
 
-};
+}
 
 SensorBMP::SensorBMP(byte scl, byte sda, MQTT &mqtt, unsigned int shift, unsigned int interval) : BMP180(), Sensor(shift, interval, mqtt) {
 	init(scl, sda);
-};
+}
 
 void SensorBMP::compute() {
 	DEBUG4_PRINTLN("_readBarometer");

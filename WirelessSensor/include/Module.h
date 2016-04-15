@@ -80,8 +80,8 @@ private:
 	void init(byte scl, byte sda);
 
 public:
-	SensorBMP(byte pin, byte count);
-	SensorBMP(byte pin, byte count, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	SensorBMP(byte scl, byte sda);
+	SensorBMP(byte scl, byte sda, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorBMP();
 	void compute();
 	void publish();
