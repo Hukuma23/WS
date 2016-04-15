@@ -33,6 +33,7 @@ private:
 	String topicSubscr;
 	String nameClient;
 
+	unsigned int loopIndex=0;
 	bool isConnected = false;
 
 	void init(String broker_ip, int broker_port, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL, MqttStringSubscriptionCallback delegate_callback = NULL);
@@ -72,6 +73,7 @@ public:
 	String getTopic(String topic, byte index, MessageDirection direction);
 
 	String getName();
+	String getUptime();
 
 };
 

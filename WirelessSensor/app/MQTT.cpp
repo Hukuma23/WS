@@ -8,7 +8,6 @@
 #include <MQTT.h>
 
 void MQTT::init(String broker_ip, int broker_port, unsigned int shift, unsigned int interval, MqttStringSubscriptionCallback delegate_callback) {
-	DEBUG4_PRINTLN("*** MQTT Constructor ***");
 	this->timer_shift = shift;
 	this->timer_interval = interval;
 
@@ -41,6 +40,7 @@ MQTT::~MQTT() {}
 
 void MQTT::loop() {
 	connect();
+	loopIndex++;
 	delegate_loop();
 }
 
@@ -137,4 +137,67 @@ String MQTT::getTopic(String topic, byte index, MessageDirection direction) {
 
 String MQTT::getName() {
 	return this->nameClient;
+}
+
+String MQTT::getUptime() {
+	unsigned int uptime = loopIndex / (60000/timer_interval);
+	int months = uptime / 43200;
+
+	uptime %= 43200;
+	int weeks = uptime / 10080;
+
+	uptime %= 10080;
+	int days = uptime / 1440;
+
+	uptime %= 1440;
+	int hours = uptime / 60;
+
+	uptime %= 60;
+
+	String result = "";
+
+	if (months > 0) {
+		result += String(months);
+		if (months > 1)
+			result += " months ";
+		else
+			result += " month ";
+	}
+
+	if (weeks > 0) {
+		result += String(weeks);
+		if (weeks > 1)
+			result += " weeks ";
+		else
+			result += " week ";
+	}
+
+	if (days > 0) {
+		result += String(days);
+		if (days > 1)
+			result += " days ";
+		else
+			result += " day ";
+	}
+
+	if (hours > 0) {
+		result += String(hours);
+		if (hours > 1)
+			result += " hours ";
+		else
+			result += " hour ";
+	}
+
+	if (uptime > 0) {
+		result += String(uptime);
+		if (uptime > 1)
+			result += " minutes ";
+		else
+			result += " minute ";
+	}
+
+	if ((months == 0) && (weeks == 0) && (days == 0) && (hours == 0) && (uptime == 0))
+		result += "less than a minute";
+
+	return result;
 }
