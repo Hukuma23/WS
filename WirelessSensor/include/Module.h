@@ -11,6 +11,7 @@
 #include <Libraries/BMP180/BMP180.h>
 #include <MQTT.h>
 #include <Logger.h>
+#include <AppSettings.h>
 
 #ifndef INCLUDE_MODULE_H_
 #define INCLUDE_MODULE_H_
@@ -60,10 +61,10 @@ class SensorDHT: protected DHT, public Sensor {
 private:
 	float temperature = undefined;
 	float humidity = undefined;
-	void init(byte pin, byte dhtType);
+	void init();
 
 public:
-	SensorDHT(byte pin, byte dhtType);
+	SensorDHT(MQTT &mqtt, byte dhtType = DHT22);
 	SensorDHT(byte pin, byte dhtType, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorDHT();
 	void compute();
@@ -80,7 +81,7 @@ private:
 	void init(byte scl, byte sda);
 
 public:
-	SensorBMP(byte scl, byte sda);
+	SensorBMP(MQTT &mqtt);
 	SensorBMP(byte scl, byte sda, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorBMP();
 	void compute();
@@ -95,10 +96,10 @@ private:
 	byte count = 0;
 	float* temperature;
 	float readDCByAddr(byte addr[]);
-	void init(byte pin, byte count);
+	void init(byte count);
 
 public:
-	SensorDS(byte pin, byte count);
+	SensorDS(MQTT &mqtt, byte count = 1);
 	SensorDS(byte pin, byte count, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 
 	~SensorDS();

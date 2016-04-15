@@ -17,6 +17,7 @@ Sensor::Sensor(unsigned int shift, unsigned int interval, MQTT &mqtt) : timer_sh
 }
 
 void Sensor::start() {
+	DEBUG4_PRINTLN("Sensor::start!");
 	timer.initializeMs(timer_interval, TimerDelegate(&Sensor::loop,this)).start();
 }
 
@@ -65,16 +66,17 @@ void Sensor::compute() {DEBUG4_PRINTLN("Sensor.compute()");};
 // SensorDHT
 SensorDHT::~SensorDHT() {}
 
-void SensorDHT::init(byte pin, byte dhtType) {
+void SensorDHT::init() {
 	DHT:begin();
 }
 
-SensorDHT::SensorDHT(byte pin, byte dhtType) : DHT(pin, dhtType), Sensor(){
-	init(pin, dhtType);
+SensorDHT::SensorDHT(MQTT &mqtt, byte dhtType) : DHT(AppSettings.dht, dhtType), Sensor(AppSettings.shift_dht, AppSettings.interval_dht, mqtt){
+	init();
 }
 
+
 SensorDHT::SensorDHT(byte pin, byte dhtType, MQTT &mqtt, unsigned int shift, unsigned int interval) : DHT(pin, dhtType), Sensor(shift, interval, mqtt) {
-	init(pin, dhtType);
+	init();
 }
 
 void SensorDHT::compute() {
@@ -117,14 +119,14 @@ void SensorDHT::publish() {
 	bool result;
 
 	if (temperature != undefined) {
-		result = mqtt->publish("dht_t", OUT, String(temperature));
+		result = mqtt->publish(AppSettings.topDHT_t, OUT, String(temperature));
 
 		if (result)
 			temperature = undefined;
 	}
 
 	if (humidity != undefined) {
-		result = mqtt->publish("dht_h", OUT, String(humidity));
+		result = mqtt->publish(AppSettings.topDHT_h, OUT, String(humidity));
 
 		if (result)
 			humidity = undefined;
@@ -140,9 +142,8 @@ void SensorBMP::init(byte scl, byte sda) {
 	Wire.begin();
 }
 
-SensorBMP::SensorBMP(byte scl, byte sda) : BMP180(), Sensor(){
-	init(scl, sda);
-
+SensorBMP::SensorBMP(MQTT &mqtt) : BMP180(), Sensor(AppSettings.shift_bmp, AppSettings.interval_bmp, mqtt){
+	init(AppSettings.scl, AppSettings.sda);
 }
 
 SensorBMP::SensorBMP(byte scl, byte sda, MQTT &mqtt, unsigned int shift, unsigned int interval) : BMP180(), Sensor(shift, interval, mqtt) {
@@ -204,14 +205,14 @@ void SensorBMP::publish() {
 	bool result;
 
 	if (temperature != undefined) {
-		result = mqtt->publish("bmp_t", OUT, String(temperature));
+		result = mqtt->publish(AppSettings.topBMP_t, OUT, String(temperature));
 
 		if (result)
 			temperature = undefined;
 	}
 
 	if (pressure != undefined) {
-		result = mqtt->publish("bmp_p", OUT, String(pressure));
+		result = mqtt->publish(AppSettings.topBMP_p, OUT, String(pressure));
 
 		if (result)
 			pressure = undefined;
@@ -223,7 +224,7 @@ SensorDS::~SensorDS() {
 	//	delete temperature;
 }
 
-void SensorDS::init(byte pin, byte count) {
+void SensorDS::init(byte count) {
 	OneWire::begin();
 	this->count = count;
 	this->temperature = new float[this->count];
@@ -232,13 +233,13 @@ void SensorDS::init(byte pin, byte count) {
 		this->temperature[i] = undefined;
 }
 
-SensorDS::SensorDS(byte pin, byte count) : OneWire(pin), Sensor(){
-	init(pin, count);
-};
+SensorDS::SensorDS(MQTT &mqtt, byte count) : OneWire(AppSettings.ds), Sensor(AppSettings.shift_ds, AppSettings.interval_ds, mqtt){
+	init(count);
+}
 
 SensorDS::SensorDS(byte pin, byte count, MQTT &mqtt, unsigned int shift, unsigned int interval) : OneWire(pin), Sensor(shift, interval, mqtt) {
-	init(pin, count);
-};
+	init(count);
+}
 
 void SensorDS::compute() {
 
@@ -281,7 +282,7 @@ void SensorDS::publish() {
 		DEBUG4_PRINTLN(temperature[i]);
 
 		if (temperature[i] != undefined) {
-			result = mqtt->publish("ds_t", i, OUT, String(temperature[i]));
+			result = mqtt->publish(AppSettings.topDS_t, i, OUT, String(temperature[i]));
 			DEBUG4_PRINTF("result = %d", result);
 			DEBUG4_PRINTLN();
 			if (result)
@@ -388,7 +389,6 @@ float SensorDS::readDCByAddr(byte addr[]) {
 	DEBUG4_PRINTLN();
 
 	return celsius;
-
 }
 
 byte SensorDS::getCount() {
@@ -410,7 +410,6 @@ void SensorDS::print() {
 	DEBUG4_PRINTF("ds.pmqtt=\"%p\"", this->mqtt);DEBUG4_PRINTLN();
 	//DEBUG4_PRINTLN("ds.mqtt.name=\"" + this->mqtt->getName() + "\"");
 
-
 	for (int i=0; i < count; i++) {
 		DEBUG4_PRINTF2("ds: i=%d, t=%4.2f", i, temperature[i]);
 		DEBUG4_PRINTLN();
@@ -420,4 +419,3 @@ void SensorDS::print() {
 
 	return;
 }
-
