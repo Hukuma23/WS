@@ -8,6 +8,7 @@
 #include <SmingCore/SmingCore.h>
 #include <Libraries/DHT/DHT.h>
 #include <Libraries/OneWire/OneWire.h>
+#include <Libraries/DS18S20/ds18s20.h>
 #include <Libraries/BMP180/BMP180.h>
 #include <MQTT.h>
 #include <Logger.h>
@@ -103,6 +104,23 @@ public:
 	SensorDS(byte pin, byte count, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 
 	~SensorDS();
+	void compute();
+	void publish();
+	byte getCount();
+	float getTemperature(byte num);
+	void print();
+};
+
+class SensorDSS: protected DS18S20, public Sensor {
+
+private:
+	void init(byte pin);
+
+public:
+	SensorDSS(MQTT &mqtt);
+	SensorDSS(byte pin, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+
+	~SensorDSS();
 	void compute();
 	void publish();
 	byte getCount();

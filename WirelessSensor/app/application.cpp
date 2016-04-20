@@ -59,7 +59,7 @@ bool isPubStart = false;
 SensorBMP* bmpSensor;
 
 // DS object
-SensorDS* dsSensor;
+SensorDSS* dsSensor;
 
 // DHT object
 SensorDHT* dhtSensor;
@@ -299,8 +299,6 @@ void onMessageReceived(String topic, String message) {
 			mqtt->publish(AppSettings.topConfig, OUT, ShowInfo());
 		}
 		else if (cmd.equals("uptime")) {
-			//mqtt.publish(topCfg_Out, "Loopindex = " + String(loopIndex));
-			//mqtt->publish(topCfg, OUT, "Loopindex = " + String(loopIndex));
 
 			String strUptime = mqtt->getUptime();
 			DEBUG4_PRINTLN("Uptime is " + strUptime);
@@ -1130,7 +1128,7 @@ void initModules() {
 		}
 
 		if (AppSettings.is_ds) {
-			dsSensor = new SensorDS(*mqtt, 1);
+			dsSensor = new SensorDSS(*mqtt);	//dsSensor = new SensorDS(*mqtt, 1);
 			//dsSensor = new SensorDS(AppSettings.ds, 1, *mqtt, AppSettings.shift_ds, AppSettings.interval_ds);
 		}
 

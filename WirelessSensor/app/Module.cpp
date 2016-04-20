@@ -419,3 +419,68 @@ void SensorDS::print() {
 
 	return;
 }
+
+
+
+// SensorDSS
+SensorDSS::~SensorDSS() {
+	//	delete temperature;
+}
+
+void SensorDSS::init(byte pin) {
+	DS18S20::Init(pin);
+}
+
+SensorDSS::SensorDSS(MQTT &mqtt) : DS18S20(), Sensor(AppSettings.shift_ds, AppSettings.interval_ds, mqtt){
+	init(AppSettings.ds);
+}
+
+SensorDSS::SensorDSS(byte pin, MQTT &mqtt, unsigned int shift, unsigned int interval) : DS18S20(), Sensor(shift, interval, mqtt) {
+	init(pin);
+}
+
+void SensorDSS::compute() {
+
+	DEBUG4_PRINTLN("dss.compute");
+	DS18S20::StartMeasure();
+	return;
+}
+
+void SensorDSS::publish() {
+	DEBUG4_PRINTLN("dss.publish");
+
+	if (mqtt == NULL) {
+		return;
+	}
+
+	DEBUG4_PRINTLN("ds.publish mqtt != null");
+	bool result;
+	byte count = DS18S20::GetSensorsCount();
+	uint64_t ds_id;
+
+	if ((!DS18S20::MeasureStatus()) && (count > 0)) {
+
+	for (byte i = 0; i < count; i++) {
+		DEBUG4_PRINTF("ds.publish i=%d, temp=", i);
+		DEBUG4_PRINTLN(DS18S20::IsValidTemperature(i));
+		ds_id = DS18S20::GetSensorID(i)>>32;
+		DEBUG4_PRINTHEX((uint32_t)ds_id);
+
+		if (DS18S20::IsValidTemperature(i)) {
+			result = mqtt->publish(AppSettings.topDS_t, i, OUT, String(DS18S20::GetCelsius(i)));
+			DEBUG4_PRINTF("result = %d", result);
+			DEBUG4_PRINTLN();
+
+			//if (result) temperature[i] = undefined;
+		}
+	}
+	}
+
+	DEBUG4_PRINTLN();
+}
+
+
+byte SensorDSS::getCount() {
+	return (DS18S20::GetSensorsCount());
+}
+
