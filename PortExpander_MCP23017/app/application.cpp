@@ -2,6 +2,7 @@
 #include <SmingCore/SmingCore.h>
 #include <Libraries/MCP23017/MCP23017.h>
 
+
 #define MCP_LED_PIN 	15
 #define MCP_BTN_A 		0
 #define MCP_BTN_B 		0
@@ -54,8 +55,10 @@ void init_mcp() {
 	uint8_t pin = mcp.getLastInterruptPin();
 	uint8_t last_state = mcp.getLastInterruptPinValue();
 
+	//detachInterrupt(ESP_INT_PIN);
 	Serial.printf("interrupt pin= %d, state=%d", pin, last_state);
 	Serial.println();
+	//attachInterrupt(ESP_INT_PIN, interruptCallback, FALLING);
 
 }
 
@@ -70,11 +73,12 @@ void interruptHandler() {
 
 	Serial.printf("push pin=%d state=%d. ", pin, act_state);
 
-
 	if (act_state == LOW)
 		timerBtnHandle.initializeMs(LONG_TIME, longtimeHandler).startOnce();
-	else
+	else {
+		attachInterrupt(ESP_INT_PIN, interruptCallback, FALLING);
 		Serial.println();
+	}
 
 }
 
@@ -150,7 +154,7 @@ void init() {
 	mcp.setupInterrupts(false, false, LOW);
 
 	mcp.pinMode(mcpPinA, INPUT);
-	//mcp.pullUp(mcpPinA, HIGH);
+	mcp.pullUp(mcpPinA, HIGH);
 
 	mcp.setupInterruptPin(mcpPinA, FALLING);
 
