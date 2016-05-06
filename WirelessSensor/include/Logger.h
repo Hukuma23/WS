@@ -33,6 +33,7 @@
 #ifdef ERROR
     #define ERROR_PRINT(x)      		Serial.print(x)
     #define ERROR_PRINTLN(x)    		Serial.println(x)
+	#define ERROR_PRINTF2(x, y, z)    	Serial.printf(x, y, z)
 #else
     #define ERROR_PRINT(x)
     #define ERROR_PRINTLN(x)

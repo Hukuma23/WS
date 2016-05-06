@@ -141,7 +141,7 @@ struct ApplicationSettingsStorage
 
 	}
 
-	byte getMINbyPin(byte pin) {
+	byte getMInNumByPin(byte pin) {
 		if ((min_cnt > 0) && (pin >=0) && (pin < 16)){
 			for (byte i = 0; i < min_cnt; i++) {
 				if (min[i] == pin)
@@ -151,13 +151,29 @@ struct ApplicationSettingsStorage
 		return -1;
 	}
 
-	byte getMSWbyPin(byte pin) {
+	/*
+	byte getMSwNumByPin(byte pin) {
 		if ((msw_cnt > 0) && (pin >=0) && (pin < 16))  {
 			for (byte i = 0; i < msw_cnt; i++) {
 				if (msw[i] == pin)
 					return i;
 			}
 		}
+		return -1;
+	}
+	 */
+
+	byte getMSwPinByNum(byte num) {
+		if ((num >= 0) && (num < msw_cnt))
+			return msw[num];
+
+		return -1;
+	}
+
+	byte getMInPinByNum(byte num) {
+		if ((num >= 0) && (num < min_cnt))
+			return min[num];
+
 		return -1;
 	}
 

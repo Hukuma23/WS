@@ -151,7 +151,7 @@ void SwIn::longtimeHandler() {
 	while (!(MCP23017::digitalRead(pin)));
 	DEBUG4_PRINTF2("MCP push pin=%d state=%d. ", pin, act_state);
 
-	byte num = AppSettings.getMINbyPin(pin);
+	byte num = AppSettings.getMInNumByPin(pin);
 
 	if (act_state == LOW) {
 		DEBUG4_PRINTLN("*-long pressed-*");

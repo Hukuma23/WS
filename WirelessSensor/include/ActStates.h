@@ -24,7 +24,7 @@
 struct ActualStateStorage {
 
 private:
-	byte msw_cnt = CONST_MSW_CNT;
+	//byte msw_cnt = CONST_MSW_CNT;
 
 public:
 	bool needInit = false;
@@ -32,8 +32,8 @@ public:
 	bool* ssw;
 	bool* msw;
 
-	byte sw_cnt = CONST_SW_CNT;
-	byte ssw_cnt = CONST_SSW_CNT;
+	//byte sw_cnt = CONST_SW_CNT;
+	//byte ssw_cnt = CONST_SSW_CNT;
 
 
 	ActualStateStorage() {
@@ -59,28 +59,46 @@ public:
 			JsonObject& root = jsonBuffer.parseObject(jsonString);
 
 			JsonObject& jSW = root["sw"];
-			sw_cnt = jSW["cnt"];
+			byte sw_cnt = jSW["cnt"];
+
 			if (sw_cnt > 0) {
 				sw = new bool[sw_cnt];
 				for (byte i=0; i < sw_cnt; i++)
 					sw[i] = jSW[String(i)];
 			}
 
+			if (sw_cnt != AppSettings.sw_cnt) {
+				ERROR_PRINTF2("ERROR: ASt.sw_cnt(%d) != AS.sw_cnt(%d)", sw_cnt, AppSettings.sw_cnt);
+				sw_cnt = AppSettings.sw_cnt;
+			}
+
 			JsonObject& jSSW = root["ssw"];
-			ssw_cnt = jSSW["cnt"];
+			byte ssw_cnt = jSSW["cnt"];
 			if (ssw_cnt > 0) {
 				ssw = new bool[ssw_cnt];
 				for (byte i=0; i < ssw_cnt; i++)
 					ssw[i] = jSSW[String(i)];
 			}
 
+			if (ssw_cnt != AppSettings.ssw_cnt) {
+				ERROR_PRINTF2("ERROR: ASt.ssw_cnt(%d) != AS.ssw_cnt(%d)", ssw_cnt, AppSettings.ssw_cnt);
+				ssw_cnt = AppSettings.ssw_cnt;
+			}
+
 			JsonObject& jMSW = root["msw"];
-			msw_cnt = jMSW["cnt"];
+			byte msw_cnt = jMSW["cnt"];
+
 			if (msw_cnt > 0) {
 				msw = new bool[msw_cnt];
 				for (byte i=0; i < msw_cnt; i++)
 					msw[i] = jMSW[String(i)];
 			}
+
+			if (msw_cnt != AppSettings.msw_cnt) {
+				ERROR_PRINTF2("ERROR: ASt.msw_cnt(%d) != AS.msw_cnt(%d)", msw_cnt, AppSettings.msw_cnt);
+				msw_cnt = AppSettings.msw_cnt;
+			}
+
 			delete[] jsonString;
 		}
 		else {
@@ -92,31 +110,26 @@ public:
 		DEBUG4_PRINTLN("ASt.init");
 		if (needInit) {
 			DEBUG4_PRINTLN("ASt.1");
-			sw_cnt = AppSettings.sw_cnt;
-			if (sw_cnt > 0) {
-				sw = new bool[sw_cnt];
-				for (byte i=0; i < sw_cnt; i++)
+			if (AppSettings.sw_cnt > 0) {
+				sw = new bool[AppSettings.sw_cnt];
+				for (byte i=0; i < AppSettings.sw_cnt; i++)
 					sw[i] = false;
 			}
 			DEBUG4_PRINTLN("ASt.2");
-			ssw_cnt = AppSettings.ssw_cnt;
-			if (ssw_cnt > 0) {
-				ssw = new bool[ssw_cnt];
-				for (byte i=0; i < ssw_cnt; i++)
+
+			if (AppSettings.ssw_cnt > 0) {
+				ssw = new bool[AppSettings.ssw_cnt];
+				for (byte i=0; i < AppSettings.ssw_cnt; i++)
 					ssw[i] = false;
 			}
-			DEBUG4_PRINTF("ASet.msw_cnt=%d   ", AppSettings.msw_cnt);
-			DEBUG4_PRINTF("ASt.msw_cnt=%d   ", msw_cnt);
-			DEBUG4_PRINTLN("ASt.3");
-			msw_cnt = AppSettings.msw_cnt;
-			if (msw_cnt > 0) {
+
+			if (AppSettings.msw_cnt > 0) {
 				DEBUG4_PRINTLN("ASt.3.1");
-				msw = new bool[msw_cnt];
-				for (byte i=0; i < msw_cnt; i++)
+				msw = new bool[AppSettings.msw_cnt];
+				for (byte i=0; i < AppSettings.msw_cnt; i++)
 					msw[i] = false;
 			}
-			DEBUG4_PRINTLN("ASt.4");
-			DEBUG4_PRINTF("ASt.msw_cnt=%d   ", msw_cnt);
+
 			needInit = false;
 			this->save();
 			DEBUG4_PRINTLN("ASt.5");
@@ -128,34 +141,34 @@ public:
 		DynamicJsonBuffer jsonBuffer;
 		JsonObject& root = jsonBuffer.createObject();
 
-		if (sw_cnt > 0) {
+		if (AppSettings.sw_cnt > 0) {
 			JsonObject& jSW = jsonBuffer.createObject();
 			root["sw"] = jSW;
-			jSW["cnt"] = sw_cnt;
-			for (byte i=0; i < sw_cnt; i++)
+			jSW["cnt"] = AppSettings.sw_cnt;
+			for (byte i=0; i < AppSettings.sw_cnt; i++)
 				jSW[String(i)] = sw[i];
 		}
 
-		if (ssw_cnt > 0) {
+		if (AppSettings.ssw_cnt > 0) {
 			JsonObject& jSSW = jsonBuffer.createObject();
 			root["ssw"] = jSSW;
-			jSSW["cnt"] = ssw_cnt;
-			for (byte i=0; i < ssw_cnt; i++)
+			jSSW["cnt"] = AppSettings.ssw_cnt;
+			for (byte i=0; i < AppSettings.ssw_cnt; i++)
 				jSSW[String(i)] = ssw[i];
 		}
 
-		if (msw_cnt > 0) {
+		if (AppSettings.msw_cnt > 0) {
 			JsonObject& jMSW = jsonBuffer.createObject();
 			root["msw"] = jMSW;
-			jMSW["cnt"] = msw_cnt;
-			for (byte i=0; i < msw_cnt; i++)
+			jMSW["cnt"] = AppSettings.msw_cnt;
+			for (byte i=0; i < AppSettings.msw_cnt; i++)
 				jMSW[String(i)] = msw[i];
 		}
 
 		//TODO: add direct file stream writing
 		fileSetContent(ACT_STATE_FILE, root.toJsonString());
-		DEBUG4_PRINTLN(root.toJsonString());
-		DEBUG4_PRINTLN("States file was saved");
+		DEBUG1_PRINTLN(root.toJsonString());
+		DEBUG1_PRINTLN("States file was saved");
 	}
 
 	bool exist() { return fileExist(ACT_STATE_FILE); }
@@ -163,21 +176,21 @@ public:
 	String printf() {
 		String result;
 
-		result = "SWITCHES[" + String(sw_cnt)+ "]\r\n";
-		if (sw_cnt > 0) {
-			for (byte i=0; i < sw_cnt; i++) {
+		result = "SWITCHES[" + String(AppSettings.sw_cnt)+ "]\r\n";
+		if (AppSettings.sw_cnt > 0) {
+			for (byte i=0; i < AppSettings.sw_cnt; i++) {
 				result += "\tsw" + String(i) + "=" + String(sw[i]) + "\r\n";
 			}
 		}
-		result = "SERIAL[" + String(ssw_cnt)+ "]\r\n";
-		if (ssw_cnt > 0) {
-			for (byte i=0; i < ssw_cnt; i++) {
+		result = "SERIAL[" + String(AppSettings.ssw_cnt)+ "]\r\n";
+		if (AppSettings.ssw_cnt > 0) {
+			for (byte i=0; i < AppSettings.ssw_cnt; i++) {
 				result += "\tssw" + String(i) + "=" + String(ssw[i]) + "\r\n";
 			}
 		}
-		result = "MCP[" + String(msw_cnt)+ "]\r\n";
-		if (msw_cnt > 0) {
-			for (byte i=0; i < msw_cnt; i++) {
+		result = "MCP[" + String(AppSettings.msw_cnt)+ "]\r\n";
+		if (AppSettings.msw_cnt > 0) {
+			for (byte i=0; i < AppSettings.msw_cnt; i++) {
 				result += "\tmsw" + String(i) + "=" + String(msw[i]) + "\r\n";
 			}
 		}
@@ -260,7 +273,7 @@ public:
 	 */
 
 	void setSw(byte num, bool state) {
-		if ((num >= 0) && (sw_cnt > num)) {
+		if ((num >= 0) && (AppSettings.sw_cnt > num)) {
 			if (sw[num] != state) {
 				this->sw[num] = state;
 				this->save();
@@ -273,7 +286,7 @@ public:
 
 	bool getSw(byte num) {
 		bool result = null;
-		if ((num >= 0) && (sw_cnt > num))
+		if ((num >= 0) && (AppSettings.sw_cnt > num))
 			result = this->sw[num];
 		else
 			ERROR_PRINT("ERROR: getSw wrong number access");
@@ -281,7 +294,7 @@ public:
 	}
 
 	void setSsw(byte num, bool state) {
-		if ((num >= 0) && (ssw_cnt > num)) {
+		if ((num >= 0) && (AppSettings.ssw_cnt > num)) {
 			if (ssw[num] != state) {
 				this->ssw[num] = state;
 				this->save();
@@ -294,7 +307,7 @@ public:
 
 	bool getSsw(byte num) {
 		bool result = false;
-		if ((num >= 0) && (ssw_cnt > num))
+		if ((num >= 0) && (AppSettings.ssw_cnt > num))
 			result = this->ssw[num];
 
 		return result;
@@ -303,8 +316,8 @@ public:
 
 	uint8_t getSsw() {
 		uint8_t result = 0;
-		if (ssw_cnt > 0) {
-			for (byte i = 0; i < ssw_cnt; i++)
+		if (AppSettings.ssw_cnt > 0) {
+			for (byte i = 0; i < AppSettings.ssw_cnt; i++)
 				result += ssw[i] << i;
 		}
 		//uint8_t sw = this->ssw1 + (this->ssw2 << 1) + (this->ssw3 << 2) + (this->ssw4 << 3) + (this->ssw5 << 4);
@@ -313,14 +326,14 @@ public:
 
 
 	void setMsw(byte num, bool state) {
-		if ((num >= 0) && (msw_cnt > num)) {
+		if ((num >= 0) && (AppSettings.msw_cnt > num)) {
 			if (msw[num] != state) {
 				this->msw[num] = state;
 				this->save();
 			}
 		}
 		else {
-			ERROR_PRINT("ERROR: setMsw wrong number access");
+			ERROR_PRINTF2("ERROR: setMsw wrong number (%d) access. msw_cnt=%d", num, AppSettings.msw_cnt);
 		}
 	}
 
@@ -332,7 +345,7 @@ public:
 
 	bool getMsw(byte num) {
 		bool result = false;
-		if ((num >= 0) && (msw_cnt > num))
+		if ((num >= 0) && (AppSettings.msw_cnt > num))
 			result = this->msw[num];
 
 		return result;
@@ -348,16 +361,12 @@ public:
 
 	uint8_t getMsw() {
 		uint8_t result = 0;
-		if (msw_cnt > 0) {
-			for (byte i = 0; i < msw_cnt; i++)
+		if (AppSettings.msw_cnt > 0) {
+			for (byte i = 0; i < AppSettings.msw_cnt; i++)
 				result += msw[i] << i;
 		}
 		//uint8_t sw = this->ssw1 + (this->ssw2 << 1) + (this->ssw3 << 2) + (this->ssw4 << 3) + (this->ssw5 << 4);
 		return result;
-	}
-
-	uint8_t getMswCnt() {
-		return msw_cnt;
 	}
 
 

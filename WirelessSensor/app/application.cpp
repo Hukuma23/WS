@@ -112,7 +112,7 @@ void IRAM_ATTR turnSw(byte num, bool state) {
 void initSw() {
 
 
-	for (byte num = 0; num < ActStates.sw_cnt; num++) {
+	for (byte num = 0; num < AppSettings.sw_cnt; num++) {
 		DEBUG4_PRINTF("initSW. pin=%d ", AppSettings.sw[num]);
 
 		pinMode(AppSettings.sw[num], OUTPUT);
@@ -350,7 +350,7 @@ void onMessageReceived(String topic, String message) {
 
 void publishSerialSw() {
 
-	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
 		if (ActStates.ssw[i])
 			mqtt->publish(AppSettings.topSSW, (i+1), OUT, "ON");	//mqtt.publish(sTopSw_Out+String(i+1), "ON");
 
@@ -358,7 +358,7 @@ void publishSerialSw() {
 			mqtt->publish(AppSettings.topSSW, (i+1), OUT, "OFF");	//mqtt.publish(sTopSw_Out+String(i+1), "OFF");
 	}
 
-	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
 		DEBUG4_PRINTF("swState%d is ", i);
 		DEBUG4_PRINTLN(ActStates.ssw[i]);
 	}
@@ -521,7 +521,7 @@ void readSwitches(SerialMessage payload) {
 	uint8_t sw = payload.sw;
 
 
-	for (byte i = 0; i < ActStates.ssw_cnt; i++) {
+	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
 		state = ((sw & (int)powf(2, i)) == 1)?HIGH:LOW;
 
 		DEBUG1_PRINTF("CHECK: readSwitches %d, state = ", i);
@@ -831,14 +831,14 @@ void connectFail() {
 
 void publishSwitches() {
 
-	for (byte i = 0; i < ActStates.sw_cnt; i++) {
+	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
 		if (ActStates.getSw(i))
 			mqtt->publish(AppSettings.topSW, (i+1), OUT, "ON");	//mqtt.publish(topSw_Out + String(i+1), "ON");
 		else
 			mqtt->publish(AppSettings.topSW, (i+1), OUT, "OFF");	//mqtt.publish(topSw_Out + String(i+1), "OFF");
 	}
 
-	for (byte i = 0; i < ActStates.sw_cnt; i++) {
+	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
 		DEBUG4_PRINTF("swState%d is ",i);
 		DEBUG4_PRINTLN(ActStates.getSw(i));
 	}
@@ -1134,10 +1134,11 @@ void configureNetwork() {
 
 void initModules() {
 	if (AppSettings.exist()) {
-		DEBUG4_PRINTLN("ActStates.init().start");
-		DEBUG4_PRINT("ASt.needInit=");DEBUG4_PRINTLN(ActStates.needInit);
+		DEBUG1_PRINTLN("ActStates.init().start");
+		DEBUG1_PRINT("ASt.needInit=");DEBUG1_PRINTLN(ActStates.needInit);
+		DEBUG1_PRINT("AS.msw_cnt=");DEBUG1_PRINTLN(AppSettings.msw_cnt);
 		ActStates.init();
-		DEBUG4_PRINTLN("ActStates.init().end");
+		DEBUG1_PRINTLN("ActStates.init().end");
 
 		mqtt = new MQTT(AppSettings.broker_ip, AppSettings.broker_port,AppSettings.shift_mqtt, AppSettings.interval_mqtt,AppSettings.main_topic, AppSettings.client_topic, onMessageReceived);
 
@@ -1159,7 +1160,7 @@ void initModules() {
 		}
 
 		if (AppSettings.is_mcp) { // I2C init
-			mcp = new MCP(3,3);
+			mcp = new MCP();
 			//mcp = new SwIn(*mqtt);
 		}
 
