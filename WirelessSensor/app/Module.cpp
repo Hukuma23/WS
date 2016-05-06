@@ -63,6 +63,158 @@ void Sensor::publish() {DEBUG4_PRINTLN("Sensor.publish()");};
 void Sensor::compute() {DEBUG4_PRINTLN("Sensor.compute()");};
 
 
+// SwIn
+
+SwIn::~SwIn() {};
+
+SwIn::SwIn(MQTT &mqtt) : MCP23017(), Sensor(AppSettings.shift_mcp, AppSettings.interval_mcp, mqtt){
+	init(AppSettings.scl, AppSettings.sda);
+}
+
+void SwIn::init(byte scl, byte sda) {
+	DEBUG4_PRINTLN("SwIn.init");
+	Wire.pins(scl, sda);
+	Wire.begin();
+
+	MCP23017::begin(0);
+
+	pinMode(AppSettings.m_int, INPUT);
+
+
+	DEBUG4_PRINTLN("ASt1");
+	DEBUG4_PRINTF("ASet.msw_cnt=%d   ", AppSettings.msw_cnt);
+	DEBUG4_PRINTF("ASt.msw_cnt=%d   ", ActStates.getMswCnt());
+
+
+	for (byte i=0; i < AppSettings.msw_cnt; i++) {
+		DEBUG4_PRINTF2("ASet.msw[%d]=%d   ", i, AppSettings.msw[i]);
+		DEBUG4_PRINTF2("ASt.msw[%d]=%d   ", i, ActStates.msw[i]);
+		MCP23017::pinMode(AppSettings.msw[i], OUTPUT);
+		MCP23017::digitalWrite(AppSettings.msw[i], ActStates.msw[i]);
+	}
+
+	DEBUG4_PRINTLN("ASt2");
+	MCP23017::setupInterrupts(true, false, LOW);
+
+	for (byte i=0; i < AppSettings.min_cnt; i++) {
+		MCP23017::pinMode(AppSettings.min[i], INPUT);
+		//MCP23017::pullUp(AppSettings.min[i], HIGH);
+		MCP23017::setupInterruptPin(AppSettings.min[i], FALLING);
+	}
+	DEBUG4_PRINTLN("ASt3");
+
+	//TimerDelegate(&Sensor::loop,this)
+	attachInterrupt(AppSettings.m_int, Delegate<void()>(&SwIn::interruptCallback, this), FALLING);
+	DEBUG4_PRINTLN("ASt4");
+	interruptReset();
+}
+
+void SwIn::interruptReset() {
+	DEBUG4_PRINT("swin.iReset:  ");
+	uint8_t pin = MCP23017::getLastInterruptPin();
+	uint8_t last_state = MCP23017::getLastInterruptPinValue();
+	DEBUG4_PRINTF2("pin=%d state=%d. ", pin, last_state);
+	DEBUG4_PRINTLN();
+}
+
+void SwIn::interruptCallback() {
+	DEBUG4_PRINTLN("Interrupt Called! ");
+	detachInterrupt(AppSettings.m_int);
+
+	btnTimer.initializeMs(AppSettings.debounce_time, TimerDelegate(&SwIn::interruptHandler, this)).startOnce();
+}
+
+void SwIn::interruptHandler() {
+	//awakenByInterrupt = true;
+
+	pin = MCP23017::getLastInterruptPin();
+	uint8_t last_state = MCP23017::getLastInterruptPinValue();
+	uint8_t act_state = MCP23017::digitalRead(pin);
+	//Serial.printf("spent time=%d", (millis() - intTime));
+	//Serial.println();
+
+	DEBUG4_PRINTF2("push pin=%d state=%d. ", pin, act_state);
+
+
+	if (act_state == LOW)
+		btnTimer.initializeMs(AppSettings.long_time, TimerDelegate(&SwIn::longtimeHandler, this)).startOnce();
+	else {
+		attachInterrupt(AppSettings.m_int, Delegate<void()>(&SwIn::interruptCallback, this), FALLING);
+		DEBUG4_PRINTLN();
+	}
+
+}
+
+void SwIn::longtimeHandler() {
+
+	uint8_t act_state = MCP23017::digitalRead(pin);
+	while (!(MCP23017::digitalRead(pin)));
+	DEBUG4_PRINTF2("MCP push pin=%d state=%d. ", pin, act_state);
+
+	byte num = AppSettings.getMINbyPin(pin);
+
+	if (act_state == LOW) {
+		DEBUG4_PRINTLN("*-long pressed-*");
+		turnSw(num);
+		if (mqtt != NULL)
+			mqtt->publish(AppSettings.topMIN, num, OUT, String("LONG"));
+	}
+	else {
+		DEBUG4_PRINTLN("*-pressed-*");
+		turnSw(num);
+		if (mqtt != NULL)
+			mqtt->publish(AppSettings.topMIN, num, OUT, String("PRSD"));
+	}
+
+
+	attachInterrupt(AppSettings.m_int, Delegate<void()>(&SwIn::interruptCallback, this), FALLING);
+}
+
+void SwIn::compute() {
+	interruptReset();
+}
+
+void SwIn::publish() {
+	DEBUG4_PRINTLN("_publishMCP");
+
+	if (mqtt == NULL) {
+		return;
+	}
+
+	bool result;
+
+	if (AppSettings.msw_cnt > 0) {
+		for (byte i = 0; i < AppSettings.msw_cnt; i++) {
+			result = mqtt->publish(AppSettings.topMSW, i, OUT, ActStates.getMswString(i));
+			if (!result)
+				ERROR_PRINTLN("Error: can't publish MSW states");
+		}
+	}
+}
+
+
+void SwIn::turnSw(byte num) {
+
+	bool state = ActStates.switchMsw(num);
+	DEBUG4_PRINTF2("num=%d; state=%d; ", num, state);
+
+	if (state) {
+		DEBUG4_PRINTF(" set msw[%d] to GREEN;  ", num);
+		MCP23017::digitalWrite(AppSettings.msw[num], HIGH);
+		AppSettings.led.green(num);
+		//mqtt.publish(sTopSw_Out+String(num+1), "ON");
+	}
+	else {
+		DEBUG4_PRINTF(" set msw[%d] to RED;  ", num);
+		MCP23017::digitalWrite(AppSettings.msw[num], LOW);
+		AppSettings.led.red(num);
+		//mqtt.publish(sTopSw_Out+String(num+1), "OFF");
+	}
+
+	DEBUG4_PRINTLN("turnSw. Done");
+}
+
+
 // SensorDHT
 SensorDHT::~SensorDHT() {}
 
@@ -460,20 +612,20 @@ void SensorDSS::publish() {
 
 	if ((!DS18S20::MeasureStatus()) && (count > 0)) {
 
-	for (byte i = 0; i < count; i++) {
-		DEBUG4_PRINTF("ds.publish i=%d, temp=", i);
-		DEBUG4_PRINTLN(DS18S20::IsValidTemperature(i));
-		ds_id = DS18S20::GetSensorID(i)>>32;
-		DEBUG4_PRINTHEX((uint32_t)ds_id);
+		for (byte i = 0; i < count; i++) {
+			DEBUG4_PRINTF("ds.publish i=%d, temp=", i);
+			DEBUG4_PRINTLN(DS18S20::IsValidTemperature(i));
+			ds_id = DS18S20::GetSensorID(i)>>32;
+			DEBUG4_PRINTHEX((uint32_t)ds_id);
 
-		if (DS18S20::IsValidTemperature(i)) {
-			result = mqtt->publish(AppSettings.topDS_t, i, OUT, String(DS18S20::GetCelsius(i)));
-			DEBUG4_PRINTF("result = %d", result);
-			DEBUG4_PRINTLN();
+			if (DS18S20::IsValidTemperature(i)) {
+				result = mqtt->publish(AppSettings.topDS_t, i, OUT, String(DS18S20::GetCelsius(i)));
+				DEBUG4_PRINTF("result = %d", result);
+				DEBUG4_PRINTLN();
 
-			//if (result) temperature[i] = undefined;
+				//if (result) temperature[i] = undefined;
+			}
 		}
-	}
 	}
 
 	DEBUG4_PRINTLN();

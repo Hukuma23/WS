@@ -11,6 +11,7 @@
 #include <LED.h>
 #include <MQTT.h>
 #include <Module.h>
+#include <MCP.h>
 
 //FTPServer ftp;
 
@@ -64,6 +65,11 @@ SensorDSS* dsSensor;
 // DHT object
 SensorDHT* dhtSensor;
 
+// MCP/SwIn object
+//SwIn* mcp;
+
+// MCP object
+MCP* mcp;
 
 // Serial
 float sDSTemp[3];
@@ -488,6 +494,9 @@ void stopAllTimers(void) {
 	if (bmpSensor != NULL)
 		bmpSensor->stopTimer();
 
+	if (mcp != NULL)
+		mcp->stopTimer();
+
 	timerWIFI.stop();
 	timerSerialListener.stop();
 	timerListener.stop();
@@ -711,6 +720,14 @@ void startTimers() {
 		DEBUG4_PRINTLN("armed");
 	}
 
+	if (mcp != NULL) {
+		DEBUG4_PRINT("mcpTimer.. ");
+		mcp->startTimer();
+		delay(50);
+		DEBUG4_PRINTLN("armed");
+	}
+
+
 	DEBUG4_PRINT("wifiTimer.. ");
 	timerWIFI.initializeMs(AppSettings.shift_wifi, setCheckWifi).startOnce();
 	delay(50);
@@ -875,6 +892,9 @@ void checkWifi(void) {
 
 	if (bmpSensor != NULL)
 		bmpSensor->stopTimer();
+
+	if (mcp != NULL)
+		mcp->stopTimer();
 
 	timerWIFI.stop();
 	DEBUG4_PRINTLN(" stopped");
@@ -1115,6 +1135,7 @@ void configureNetwork() {
 void initModules() {
 	if (AppSettings.exist()) {
 		DEBUG4_PRINTLN("ActStates.init().start");
+		DEBUG4_PRINT("ASt.needInit=");DEBUG4_PRINTLN(ActStates.needInit);
 		ActStates.init();
 		DEBUG4_PRINTLN("ActStates.init().end");
 
@@ -1135,6 +1156,11 @@ void initModules() {
 		if (AppSettings.is_bmp) { // I2C init
 			bmpSensor = new SensorBMP(*mqtt);
 			//bmpSensor = new SensorBMP(AppSettings.scl, AppSettings.sda, *mqtt, AppSettings.shift_bmp, AppSettings.interval_bmp);
+		}
+
+		if (AppSettings.is_mcp) { // I2C init
+			mcp = new MCP(3,3);
+			//mcp = new SwIn(*mqtt);
 		}
 
 		PRINT_MEM();

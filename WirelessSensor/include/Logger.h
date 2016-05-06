@@ -9,7 +9,7 @@
 #define INCLUDE_LOGGER_H_
 
 
-#define DEBUG4
+#define DEBUG1
 #define MEMORY
 
 

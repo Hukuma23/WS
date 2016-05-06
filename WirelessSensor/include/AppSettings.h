@@ -62,6 +62,9 @@ struct ApplicationSettingsStorage
 	String topSW;
 	String topSSW;
 
+	String topMSW;
+	String topMIN;
+
 	String topWater_h;
 	String topWater_c;
 
@@ -84,6 +87,12 @@ struct ApplicationSettingsStorage
 	byte in_cnt=0;
 	LED led;
 
+	byte* msw;
+	byte msw_cnt;
+	byte* min;
+	byte min_cnt;
+	byte m_int;
+
 	// HTTP
 	HttpClient httpClient;
 	String urlFW[2] = {"http://10.0.1.22:8080/ota/settings.conf", "http://10.4.1.59:8080/Blink/settings.conf"};
@@ -98,6 +107,7 @@ struct ApplicationSettingsStorage
 	bool is_ds = false;
 	bool is_serial = false;
 	bool is_insw = false;
+	bool is_mcp = false;
 
 	// TIMERS
 	unsigned long shift_mqtt = 10000;
@@ -107,6 +117,7 @@ struct ApplicationSettingsStorage
 	unsigned long shift_wifi = 25000;
 	unsigned long shift_collector = 3000;
 	unsigned long shift_receiver = 16000;
+	unsigned long shift_mcp = 12000;
 
 	unsigned long interval_mqtt = 30000;
 	unsigned long interval_dht = 60000;
@@ -116,7 +127,10 @@ struct ApplicationSettingsStorage
 	unsigned long interval_listener = 200;
 	unsigned long interval_collector = 30000;
 	unsigned long interval_receiver = 30000;
-	unsigned long debounce_time = 1000;
+	unsigned long interval_mcp = 30000;
+
+	unsigned long debounce_time = 20;
+	unsigned long long_time = 500;
 
 	ApplicationSettingsStorage() {
 		//Initialization of rBoot OTA
@@ -125,6 +139,26 @@ struct ApplicationSettingsStorage
 		load();
 		loadNetwork();
 
+	}
+
+	byte getMINbyPin(byte pin) {
+		if ((min_cnt > 0) && (pin >=0) && (pin < 16)){
+			for (byte i = 0; i < min_cnt; i++) {
+				if (min[i] == pin)
+					return i;
+			}
+		}
+		return -1;
+	}
+
+	byte getMSWbyPin(byte pin) {
+		if ((msw_cnt > 0) && (pin >=0) && (pin < 16))  {
+			for (byte i = 0; i < msw_cnt; i++) {
+				if (msw[i] == pin)
+					return i;
+			}
+		}
+		return -1;
 	}
 
 	void loadWifiList() {
@@ -248,6 +282,9 @@ struct ApplicationSettingsStorage
 		topSW = mqtt["sw"].toString();
 		topSSW = mqtt["ssw"].toString();
 
+		topMSW = mqtt["msw"].toString();
+		topMIN = mqtt["min"].toString();
+
 		topWater_h = mqtt["water_h"].toString();
 		topWater_c = mqtt["water_c"].toString();
 
@@ -256,6 +293,7 @@ struct ApplicationSettingsStorage
 		scl = pins["scl"];
 		dht = pins["dht"];
 		ds = pins["ds"];
+		m_int = pins["mint"];
 
 		if (pins.containsKey("sw")) {
 			JsonObject& jSw = pins["sw"];
@@ -269,11 +307,35 @@ struct ApplicationSettingsStorage
 
 		if (pins.containsKey("ssw")) {
 			JsonObject& jSsw = pins["ssw"];
-			this->sw_cnt = (byte)jSsw["cnt"];
+			this->ssw_cnt = (byte)jSsw["cnt"];
 			ssw = new byte[ssw_cnt];
 			for (byte i = 0; i < ssw_cnt; i++ ) {
 				if (jSsw.containsKey(String(i+1).c_str()))
 					this->ssw[i] = jSsw[String(i+1)];
+			}
+		}
+
+		if (pins.containsKey("mcp")) {
+			JsonObject& jMCP = pins["mcp"];
+
+			if (jMCP.containsKey("sw")) {
+				JsonObject& jMSW = jMCP["sw"];
+				this->msw_cnt = (byte)jMSW["cnt"];
+				msw = new byte[msw_cnt];
+				for (byte i = 0; i < msw_cnt; i++ ) {
+					if (jMSW.containsKey(String(i+1).c_str()))
+						this->msw[i] = jMSW[String(i+1)];
+				}
+			}
+
+			if (jMCP.containsKey("in")) {
+				JsonObject& jMIN = jMCP["in"];
+				this->min_cnt = (byte)jMIN["cnt"];
+				min = new byte[min_cnt];
+				for (byte i = 0; i < min_cnt; i++ ) {
+					if (jMIN.containsKey(String(i+1).c_str()))
+						this->min[i] = jMIN[String(i+1)];
+				}
 			}
 		}
 
@@ -303,6 +365,7 @@ struct ApplicationSettingsStorage
 		is_wifi = modules["is_wifi"];
 		is_serial = modules["is_serial"];
 		is_insw = modules["is_insw"];
+		is_mcp = modules["is_mcp"];
 
 		JsonObject& timers = config["timers"];
 		shift_mqtt = timers["shift_mqtt"];
@@ -312,6 +375,7 @@ struct ApplicationSettingsStorage
 		shift_wifi = timers["shift_wifi"];
 		shift_collector = timers["shift_collector"];
 		shift_receiver = timers["shift_receiver"];
+		shift_mcp = timers["shift_mcp"];
 
 		interval_mqtt = timers["interval_mqtt"];
 		interval_dht = timers["interval_dht"];
@@ -321,7 +385,10 @@ struct ApplicationSettingsStorage
 		interval_listener = timers["interval_listener"];
 		interval_collector = timers["interval_collector"];
 		interval_receiver = timers["interval_receiver"];
+		interval_mcp = timers["interval_mcp"];
+
 		debounce_time = timers["debounce_time"];
+		long_time = timers["long_time"];
 
 		delete[] jsonString;
 	}
@@ -344,12 +411,12 @@ struct ApplicationSettingsStorage
 	void deleteConf() {
 		if (exist()) {
 			fileDelete(APP_SETTINGS_FILE);
-			DEBUG1_PRINT(APP_SETTINGS_FILE );
-			DEBUG1_PRINTLN(" successful deleted!");
+			//DEBUG1_PRINT(APP_SETTINGS_FILE );
+			//DEBUG1_PRINTLN(" successful deleted!");
 		}
 		else {
-			DEBUG1_PRINT(APP_SETTINGS_FILE );
-			DEBUG1_PRINTLN(" wasn't found. Didn't deleted!");
+			//DEBUG1_PRINT(APP_SETTINGS_FILE );
+			//DEBUG1_PRINTLN(" wasn't found. Didn't deleted!");
 		}
 	}
 
@@ -367,19 +434,20 @@ struct ApplicationSettingsStorage
 
 	void onComplete(HttpClient& client, bool successful)
 	{
-		if (successful)
-			DEBUG1_PRINTLN("HttpLoad: Success sent");
+		if (successful) {
+			//DEBUG1_PRINTLN("HttpLoad: Success sent");
+		}
 		else {
-			DEBUG1_PRINTLN("HttpLoad: Failed");
+			//DEBUG1_PRINTLN("HttpLoad: Failed");
 			urlIndexChange();
 			timerHttp.initializeMs(HTTP_TRY_PERIOD, TimerDelegate(&ApplicationSettingsStorage::downloadSettings, this)).startOnce();
 		}
 
 		String response = client.getResponseString();
-		DEBUG4_PRINTLN("Server response: '" + response + "'");
+		//DEBUG4_PRINTLN("Server response: '" + response + "'");
 		if (response.length() > 0) {
 			fileSetContent(APP_SETTINGS_FILE, response);
-			DEBUG1_PRINTLN("Settings.conf downloaded and saved!");
+			//DEBUG1_PRINTLN("Settings.conf downloaded and saved!");
 			int size = response.length();
 			//char* jsonString = new char[size + 1];
 			char* jsonString = const_cast<char*>(response.c_str()); //!!! Check this
@@ -393,7 +461,7 @@ struct ApplicationSettingsStorage
 
 	void loadHttp() {
 		if (httpClient.isProcessing()) {
-			DEBUG4_PRINTLN("We need to wait while request processing was completed");
+			//DEBUG4_PRINTLN("We need to wait while request processing was completed");
 			return; // We need to wait while request processing was completed
 		}
 
@@ -539,6 +607,9 @@ struct ApplicationSettingsStorage
 		mqtt_topic["sw"] = topSW.c_str();
 		mqtt_topic["ssw"] = topSSW.c_str();
 
+		mqtt_topic["msw"] = topMSW.c_str();
+		mqtt_topic["min"] = topMIN.c_str();
+
 		mqtt_topic["water_h"] = topWater_h.c_str();
 		mqtt_topic["water_c"] = topWater_c.c_str();
 
@@ -548,6 +619,7 @@ struct ApplicationSettingsStorage
 		pins["scl"] = scl;
 		pins["dht"] = dht;
 		pins["ds"] = ds;
+		pins["mint"] = m_int;
 
 		JsonObject& jSw = (isExist?pins["sw"]:jsonBuffer.createObject());
 		jSw["cnt"] = this->sw_cnt;
@@ -575,6 +647,7 @@ struct ApplicationSettingsStorage
 		modules["is_wifi"] = is_wifi;
 		modules["is_serial"] = is_serial;
 		modules["is_insw"] = is_insw;
+		modules["is_mcp"] = is_mcp;
 
 		JsonObject& timers = (isExist?config["timers"]:jsonBuffer.createObject());
 		timers["shift_mqtt"] = shift_mqtt;
@@ -584,6 +657,7 @@ struct ApplicationSettingsStorage
 		timers["shift_wifi"] = shift_wifi;
 		timers["shift_collector"] = shift_collector;
 		timers["shift_receiver"] = shift_receiver;
+		timers["shift_mcp"] = shift_mcp;
 
 		timers["interval_mqtt"] = interval_mqtt;
 		timers["interval_dht"] = interval_dht;
@@ -593,7 +667,10 @@ struct ApplicationSettingsStorage
 		timers["interval_listener"] = interval_listener;
 		timers["interval_collector"] = interval_collector;
 		timers["interval_receiver"] = interval_receiver;
+		timers["interval_mcp"] = interval_mcp;
+
 		timers["debounce_time"] = debounce_time;
+		timers["long_time"] = long_time;
 
 		if (isExist) {
 			root["config"] = config;
@@ -681,6 +758,9 @@ struct ApplicationSettingsStorage
 		mqtt["sw"] = topSW.c_str();
 		mqtt["ssw"] = topSSW.c_str();
 
+		mqtt["msw"] = topMSW.c_str();
+		mqtt["min"] = topMIN.c_str();
+
 		mqtt["water_h"] = topWater_h.c_str();
 		mqtt["water_c"] = topWater_c.c_str();
 
@@ -689,6 +769,7 @@ struct ApplicationSettingsStorage
 		pins["scl"] = scl;
 		pins["dht"] = dht;
 		pins["ds"] = ds;
+		pins["mint"] = m_int;
 
 		JsonObject& jSw = jsonBuffer.createObject();
 		jSw["cnt"] = this->sw_cnt;
@@ -721,6 +802,7 @@ struct ApplicationSettingsStorage
 		modules["is_wifi"] = is_wifi;
 		modules["is_serial"] = is_serial;
 		modules["is_insw"] = is_insw;
+		modules["is_mcp"] = is_mcp;
 
 		JsonObject& timers = jsonBuffer.createObject();
 		timers["shift_mqtt"] = shift_mqtt;
@@ -730,6 +812,7 @@ struct ApplicationSettingsStorage
 		timers["shift_wifi"] = shift_wifi;
 		timers["shift_collector"] = shift_collector;
 		timers["shift_receiver"] = shift_receiver;
+		timers["shift_mcp"] = shift_mcp;
 
 		timers["interval_mqtt"] = interval_mqtt;
 		timers["interval_dht"] = interval_dht;
@@ -739,7 +822,10 @@ struct ApplicationSettingsStorage
 		timers["interval_listener"] = interval_listener;
 		timers["interval_collector"] = interval_collector;
 		timers["interval_receiver"] = interval_receiver;
+		timers["interval_mcp"] = interval_mcp;
+
 		timers["debounce_time"] = debounce_time;
+		timers["long_time"] = long_time;
 
 		config["networks"] = networks;
 		config["modules"] = modules;
@@ -751,7 +837,7 @@ struct ApplicationSettingsStorage
 		DEBUG4_PRINTLN(root.toJsonString());
 		DEBUG4_PRINTLN("Settings file was saved");
 	}
-	*/
+	 */
 
 	bool exist() {
 		if (fileExist(APP_SETTINGS_FILE))
@@ -946,6 +1032,10 @@ struct ApplicationSettingsStorage
 					this->is_insw = modules["is_insw"];
 					result += "is_insw, ";
 				}
+				if (modules.containsKey("is_mcp")) {
+					this->is_mcp = modules["is_mcp"];
+					result += "is_mcp, ";
+				}
 			}
 
 			if (config.containsKey("timers")) {
@@ -1014,6 +1104,10 @@ struct ApplicationSettingsStorage
 				if (timers.containsKey("debounce_time")) {
 					this->debounce_time = timers["debounce_time"];
 					result += "debounce_time, ";
+				}
+				if (timers.containsKey("long_time")) {
+					this->long_time = timers["long_time"];
+					result += "long_time, ";
 				}
 			}
 
