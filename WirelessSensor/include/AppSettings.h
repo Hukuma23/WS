@@ -42,6 +42,35 @@ struct ApplicationSettingsStorage
 	IPAddress broker_ip;
 	int broker_port;
 
+<<<<<<< Updated upstream
+=======
+	//MQTT topic names
+	String topConfig;
+	String topLog;
+	String topStart;
+	String topVCC;
+
+
+	String topDHT_t;
+	String topDHT_h;
+
+	String topBMP_t;
+	String topBMP_p;
+
+	String topDS_t;
+
+	String topSW;
+	String topSSW;
+
+	String topMSW;
+	String topMIN;
+	String topMIN_L;
+
+	String topWater_h;
+	String topWater_c;
+
+
+>>>>>>> Stashed changes
 	// PINS
 	byte sda;
 	byte scl;
@@ -244,6 +273,7 @@ struct ApplicationSettingsStorage
 
 
 
+<<<<<<< Updated upstream
 	void load() {
 		DynamicJsonBuffer jsonBuffer;
 		if (exist())
@@ -252,6 +282,49 @@ struct ApplicationSettingsStorage
 			char* jsonString = new char[size + 1];
 			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
 			JsonObject& root = jsonBuffer.parseObject(jsonString);
+=======
+		topDS_t = mqtt["ds_t"].toString();
+
+		topSW = mqtt["sw"].toString();
+		topSSW = mqtt["ssw"].toString();
+
+		topMSW = mqtt["msw"].toString();
+		topMIN = mqtt["min"].toString();
+		topMIN_L = mqtt["min_l"].toString();
+
+		topWater_h = mqtt["water_h"].toString();
+		topWater_c = mqtt["water_c"].toString();
+
+		JsonObject& pins = config["pins"];
+		sda = pins["sda"];
+		scl = pins["scl"];
+		dht = pins["dht"];
+		ds = pins["ds"];
+		m_int = pins["mint"];
+
+		if (pins.containsKey("sw")) {
+			JsonObject& jSw = pins["sw"];
+			this->sw_cnt = (byte)jSw["cnt"];
+			sw = new byte[sw_cnt];
+			for (byte i = 0; i < sw_cnt; i++ ) {
+				if (jSw.containsKey(String(i+1).c_str()))
+					this->sw[i] = jSw[String(i+1)];
+			}
+		}
+
+		if (pins.containsKey("ssw")) {
+			JsonObject& jSsw = pins["ssw"];
+			this->ssw_cnt = (byte)jSsw["cnt"];
+			ssw = new byte[ssw_cnt];
+			for (byte i = 0; i < ssw_cnt; i++ ) {
+				if (jSsw.containsKey(String(i+1).c_str()))
+					this->ssw[i] = jSsw[String(i+1)];
+			}
+		}
+
+		if (pins.containsKey("mcp")) {
+			JsonObject& jMCP = pins["mcp"];
+>>>>>>> Stashed changes
 
 			JsonObject& config = root["config"];
 			serial_speed = config["serial_speed"];
@@ -486,6 +559,57 @@ struct ApplicationSettingsStorage
 				network["ota"] = ota;
 				network["mqtt"] = mqtt;
 				networks[ssid] = network;
+<<<<<<< Updated upstream
+=======
+				networks["list"] = list;
+			}
+		}
+
+		JsonObject& mqtt_topic = (isExist?config["mqtt_topic"]:jsonBuffer.createObject());
+		mqtt_topic["main_topic"] = main_topic.c_str();
+		mqtt_topic["client_topic"] = client_topic.c_str();
+
+		mqtt_topic["config"] = topConfig.c_str();
+		mqtt_topic["log"] = topLog.c_str();
+		mqtt_topic["start"] = topStart.c_str();
+		mqtt_topic["vcc"] = topVCC.c_str();
+
+		mqtt_topic["dht_t"] = topDHT_t.c_str();
+		mqtt_topic["dht_h"] = topDHT_h.c_str();
+
+		mqtt_topic["bmp_t"] = topBMP_t.c_str();
+		mqtt_topic["bmp_p"] = topBMP_p.c_str();
+
+		mqtt_topic["ds_t"] = topDS_t.c_str();
+
+		mqtt_topic["sw"] = topSW.c_str();
+		mqtt_topic["ssw"] = topSSW.c_str();
+
+		mqtt_topic["msw"] = topMSW.c_str();
+		mqtt_topic["min"] = topMIN.c_str();
+		mqtt_topic["min_l"] = topMIN_L.c_str();
+
+		mqtt_topic["water_h"] = topWater_h.c_str();
+		mqtt_topic["water_c"] = topWater_c.c_str();
+
+
+		JsonObject& pins = (isExist?config["pins"]:jsonBuffer.createObject());
+		pins["sda"] = sda;
+		pins["scl"] = scl;
+		pins["dht"] = dht;
+		pins["ds"] = ds;
+		pins["mint"] = m_int;
+
+		JsonObject& jSw = (isExist?pins["sw"]:jsonBuffer.createObject());
+		jSw["cnt"] = this->sw_cnt;
+		for (byte i = 0; i < sw_cnt; i++)
+			jSw[String(i+1)] = sw[i];
+
+		JsonObject& jSsw = (isExist?pins["ssw"]:jsonBuffer.createObject());
+		jSsw["cnt"] = this->ssw_cnt;
+		for (byte i = 0; i < ssw_cnt; i++)
+			jSsw[String(i+1)] = ssw[i];
+>>>>>>> Stashed changes
 
 			}
 			else {
@@ -619,6 +743,26 @@ struct ApplicationSettingsStorage
 		mqtt["main_topic"] = main_topic.c_str();
 		mqtt["client_topic"] = client_topic.c_str();
 
+<<<<<<< Updated upstream
+=======
+		mqtt["dht_t"] = topDHT_t.c_str();
+		mqtt["dht_h"] = topDHT_h.c_str();
+
+		mqtt["bmp_t"] = topBMP_t.c_str();
+		mqtt["bmp_p"] = topBMP_p.c_str();
+
+		mqtt["ds_t"] = topDS_t.c_str();
+
+		mqtt["sw"] = topSW.c_str();
+		mqtt["ssw"] = topSSW.c_str();
+
+		mqtt["msw"] = topMSW.c_str();
+		mqtt["min"] = topMIN.c_str();
+		mqtt["min_l"] = topMIN_L.c_str();
+
+		mqtt["water_h"] = topWater_h.c_str();
+		mqtt["water_c"] = topWater_c.c_str();
+>>>>>>> Stashed changes
 
 		JsonObject& pins = jsonBuffer.createObject();
 		pins["sda"] = sda;

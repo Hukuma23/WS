@@ -1633,6 +1633,64 @@ void configureNetwork() {
 	DEBUG4_PRINTLN("*********************************************");
 
 	//Serial.setCallback(serialCallBack);
+<<<<<<< Updated upstream
+=======
+}
+*/
+
+void initModules() {
+	if (AppSettings.exist()) {
+		DEBUG1_PRINTLN("ActStates.init().start");
+		DEBUG1_PRINT("ASt.needInit=");DEBUG1_PRINTLN(ActStates.needInit);
+		DEBUG1_PRINT("AS.msw_cnt=");DEBUG1_PRINTLN(AppSettings.msw_cnt);
+		ActStates.init();
+		DEBUG1_PRINTLN("ActStates.init().end");
+
+		mqtt = new MQTT(AppSettings.broker_ip, AppSettings.broker_port,AppSettings.shift_mqtt, AppSettings.interval_mqtt,AppSettings.main_topic, AppSettings.client_topic, onMessageReceived);
+
+		DEBUG4_PRINTF("pmqtt=\"%p\"", mqtt);
+
+		if (AppSettings.is_dht) {
+			dhtSensor = new SensorDHT(*mqtt);
+			//dhtSensor = new SensorDHT(AppSettings.dht, DHT22, *mqtt, AppSettings.shift_dht, AppSettings.interval_dht);
+		}
+
+		if (AppSettings.is_ds) {
+			dsSensor = new SensorDSS(*mqtt);	//dsSensor = new SensorDS(*mqtt, 1);
+			//dsSensor = new SensorDS(AppSettings.ds, 1, *mqtt, AppSettings.shift_ds, AppSettings.interval_ds);
+		}
+
+		if (AppSettings.is_bmp) { // I2C init
+			bmpSensor = new SensorBMP(*mqtt);
+			//bmpSensor = new SensorBMP(AppSettings.scl, AppSettings.sda, *mqtt, AppSettings.shift_bmp, AppSettings.interval_bmp);
+		}
+
+		if (AppSettings.is_mcp) { // I2C init
+			mcp = new MCP(*mqtt);
+			//mcp = new SwIn(*mqtt);
+		}
+
+		PRINT_MEM();
+
+		if (AppSettings.is_insw) {
+			byte in_cnt = AppSettings.in_cnt;
+			for (byte i = 0; i < in_cnt; i++) {
+				pinMode(AppSettings.in[i], INPUT);
+			}
+
+			if (in_cnt >= 1)
+				attachInterrupt(AppSettings.in[0], interruptHandlerInSw1, HIGH);
+			if (in_cnt >= 2)
+				attachInterrupt(AppSettings.in[1], interruptHandlerInSw2, HIGH);
+			if (in_cnt >= 3)
+				attachInterrupt(AppSettings.in[2], interruptHandlerInSw3, HIGH);
+			if (in_cnt >= 4)
+				attachInterrupt(AppSettings.in[3], interruptHandlerInSw4, HIGH);
+			if (in_cnt >= 5)
+				attachInterrupt(AppSettings.in[4], interruptHandlerInSw5, HIGH);
+
+		}
+>>>>>>> Stashed changes
 
 }
 

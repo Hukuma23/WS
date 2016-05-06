@@ -67,21 +67,19 @@
 
 
 #ifdef DEBUG1
-	#define DEBUG1_PRINT(x)      	Serial.print(x)
-    #define DEBUG1_PRINTLN(x)    	Serial.println(x)
-    #define DEBUG1_PRINTHEX(x)   	Serial.print(x, HEX)
-	#define DEBUG1_PRINTF(x,y)      Serial.printf(x, y)
-	#define DEBUG1_PRINTF2(x,y,z)	Serial.printf(x,y,z)
-	#define DEBUG1_PRINTF3(x,y,z,a)	Serial.printf(x,y,z,a)
-	#define DEBUG1_WRITE(x)			Serial.write(x)
+	#define DEBUG1_PRINT(x)				Serial.print(x)
+    #define DEBUG1_PRINTLN(x)			Serial.println(x)
+    #define DEBUG1_PRINTHEX(x)			Serial.print(x, HEX)
+	#define DEBUG1_PRINTF(fmt, ...)		m_printf(fmt, ##__VA_ARGS__)
+	#define DEBUG1_PRINTFF(fmt, ...)	m_printf(fmt"\r\n", ##__VA_ARGS__)
+//	#define DEBUG1_WRITE(x)			Serial.write(x)
 #else
 	#define DEBUG1_PRINT(x)
     #define DEBUG1_PRINTLN(x)
     #define DEBUG1_PRINTHEX(x)
-	#define DEBUG1_PRINTF(x,y)
-	#define DEBUG1_PRINTF2(x,y,z)
-	#define DEBUG1_PRINTF3(x,y,z,a)
-	#define DEBUG1_WRITE(x)
+	#define DEBUG1_PRINTF(fmt, ...)
+	#define DEBUG1_PRINTFF(fmt, ...)
+	//#define DEBUG1_WRITE(x)
 #endif
 
 
