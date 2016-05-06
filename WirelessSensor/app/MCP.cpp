@@ -1,38 +1,16 @@
 #include <MCP.h>
 
-MCP::MCP() : MCP23017() {
+MCP::MCP(MQTT &mqtt, InterruptHandlerDelegate interruptHandler) : MCP23017(), Sensor(AppSettings.shift_mcp, AppSettings.interval_mcp, mqtt) {
 	Serial.print("MCP.create");
-	init();
+	init(interruptHandler);
 }
 
 MCP::~MCP() {
 	Serial.println("MCP delete called");
 }
 
-/*
-void MCP::initArr(byte sw_cnt, byte in_cnt) {
-	this->sw_cnt = sw_cnt;
-	this->in_cnt = in_cnt;
 
-	sw = new byte[this->sw_cnt];
-	sw_state = new bool[this->sw_cnt];
-	in = new byte[this->in_cnt];
-
-	for (byte i = 0; i < in_cnt; i++) {
-		in[i] = i;
-	}
-
-	for (byte i = 0; i < sw_cnt; i++) {
-		sw[i] = 15-i;
-	}
-
-	for (byte i = 0; i < sw_cnt; i++) {
-		sw_state[i] = LOW;
-	}
-}
-*/
-
-void MCP::init() {
+void MCP::init(InterruptHandlerDelegate interruptHandler) {
 	DEBUG1_PRINTLN("MCP.init");
 	Wire.pins(4, 5);
 	//DEBUG4_PRINTLN("MCP.0");
@@ -40,14 +18,10 @@ void MCP::init() {
 	//DEBUG4_PRINTLN("MCP.0.5");
 	pinMode(AppSettings.m_int, INPUT);
 
+	interruptHandlerExternal = interruptHandler;
+
 	//DEBUG4_PRINTLN("MCP.1");
 
-	//initArr(sw_cnt, in_cnt);
-
-	/* SWout
-		MCP23017::pinMode(MCP_LED_PIN, OUTPUT);
-		MCP23017::digitalWrite(MCP_LED_PIN, LOW);
-	 */
 	for (byte i = 0; i < AppSettings.msw_cnt; i++) {
 		//DEBUG4_PRINTLN("MCP.2");
 		MCP23017::pinMode(AppSettings.msw[i], OUTPUT);
@@ -61,13 +35,6 @@ void MCP::init() {
 
 	//DEBUG4_PRINTLN("MCP.4");
 
-	/* In
-		MCP23017::pinMode(mcpPinA, INPUT);
-		MCP23017::pullUp(mcpPinA, HIGH);
-		MCP23017::setupInterruptPin(mcpPinA, FALLING);
-	 */
-
-
 	for (byte i = 0; i < AppSettings.min_cnt; i++) {
 		//DEBUG4_PRINTLN("MCP.5");
 		MCP23017::pinMode(AppSettings.min[i], INPUT);
@@ -78,7 +45,7 @@ void MCP::init() {
 	//DEBUG4_PRINTLN("MCP.6");
 	attachInterrupt(AppSettings.m_int, Delegate<void()>(&MCP::interruptCallback, this), FALLING);
 	//DEBUG4_PRINTLN("MCP.7");
-	timer.initializeMs(30 * 1000, TimerDelegate(&MCP::publish, this)).start(); // every 25 seconds
+	//timer.initializeMs(30 * 1000, TimerDelegate(&MCP::publish, this)).start(); // every 25 seconds
 	//DEBUG4_PRINTLN("MCP.8");
 	interruptReset();
 	//DEBUG4_PRINTLN("MCP.9");
@@ -108,8 +75,12 @@ void MCP::interruptHandler() {
 	Serial.printf("push pin=%d state=%d. ", pin, act_state);
 
 	if (act_state == LOW) {
-		timerBtnHandle.initializeMs(LONG_TIME, TimerDelegate(&MCP::longtimeHandler, this)).startOnce();
-		turnSw(AppSettings.getMInNumByPin(pin));
+		timerBtn.initializeMs(AppSettings.long_time, TimerDelegate(&MCP::longtimeHandler, this)).startOnce();
+		byte num = AppSettings.getMInNumByPin(pin);
+		bool state = turnSw(num++);
+		mqtt->publish(AppSettings.topMIN,num, OUT, (state?"ON":"OFF"));
+		if (interruptHandlerExternal)
+			interruptHandlerExternal(num, state);
 	}
 	else {
 		attachInterrupt(AppSettings.m_int, Delegate<void()>(&MCP::interruptCallback, this), FALLING);
@@ -124,8 +95,11 @@ void MCP::longtimeHandler() {
 	while (!(MCP23017::digitalRead(pin)));
 	Serial.printf("push pin=%d state=%d. ", pin, act_state);
 
-	if (act_state == LOW)
+	if (act_state == LOW) {
 		Serial.println("*-long-*");
+		byte num = AppSettings.getMInNumByPin(pin);
+		mqtt->publish(AppSettings.topMIN_L,(num+1), OUT, (ActStates.msw[num]?"ON":"OFF"));
+	}
 	else
 		Serial.println("*-short-*");
 
@@ -136,7 +110,7 @@ void MCP::longtimeHandler() {
 void MCP::interruptCallback() {
 	Serial.print("MCP.intCB   ");
 	detachInterrupt(AppSettings.m_int);
-	timerBtnHandle.initializeMs(DEBOUNCE_TIME, TimerDelegate(&MCP::interruptHandler, this)).startOnce();
+	timerBtn.initializeMs(AppSettings.debounce_time, TimerDelegate(&MCP::interruptHandler, this)).startOnce();
 }
 
 void MCP::publish() {
@@ -144,13 +118,9 @@ void MCP::publish() {
 
 	for (byte i = 0; i < AppSettings.msw_cnt; i++) {
 		MCP23017::digitalWrite(AppSettings.msw[i], ActStates.getMsw(i));
-		DEBUG4_PRINTF("sw[%d]=ON", i);
-		if (ActStates.getMsw(i)) {
-			DEBUG4_PRINTLN("ON");
-		}
-		else {
-			DEBUG4_PRINTLN("OFF");
-		}
+		String strState = (ActStates.getMsw(i)?"ON":"OFF");
+		DEBUG4_PRINTF2("sw[%d]=%s", i, strState);
+		mqtt->publish(AppSettings.topMSW, i+1, OUT, strState);
 	}
 	PRINT_MEM();
 	DEBUG4_PRINTLN();
@@ -158,15 +128,15 @@ void MCP::publish() {
 	//pinMode(ESP_INT_PIN, OUTPUT);
 	//delay(10);
 	//pinMode(ESP_INT_PIN, INPUT);
-	interruptReset();
+	//interruptReset();
 
 }
 
 
-void MCP::turnSw(byte num) {
+bool MCP::turnSw(byte num) {
 	if (num == -1) {
 		ERROR_PRINTLN("ERROR: MCP.turnSw num = -1");
-		return;
+		return false;
 	}
 
 	byte pin = AppSettings.getMSwPinByNum(num);
@@ -181,9 +151,20 @@ void MCP::turnSw(byte num) {
 		DEBUG4_PRINTLN("OFF");
 		MCP23017::digitalWrite(pin, state);
 	}
+	return state;
 
 }
 
-void MCP::startTimer(){};
-
-void MCP::stopTimer(){};
+void MCP::loop() {
+	DEBUG1_PRINTLN("MCP::loop");
+	attachInterrupt(AppSettings.m_int, Delegate<void()>(&MCP::interruptCallback, this), FALLING);
+	if (needCompute) {
+		interruptReset();
+		needCompute = !needCompute;
+	}
+	else {
+		interruptReset();
+		publish();
+		needCompute = !needCompute;
+	}
+}

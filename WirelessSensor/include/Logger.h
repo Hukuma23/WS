@@ -33,7 +33,9 @@
 #ifdef ERROR
     #define ERROR_PRINT(x)      		Serial.print(x)
     #define ERROR_PRINTLN(x)    		Serial.println(x)
-	#define ERROR_PRINTF2(x, y, z)    	Serial.printf(x, y, z)
+	#define ERROR_PRINTF(x,y)      		Serial.printf(x, y)
+	#define ERROR_PRINTF2(x,y,z)		Serial.printf(x,y,z)
+//#define ERROR_PRINTF(fmt, ...) 		m_printf(fmt"\r\n", ##__VA_ARGS__)
 #else
     #define ERROR_PRINT(x)
     #define ERROR_PRINTLN(x)
@@ -74,6 +76,7 @@
 	#define DEBUG1_PRINTF(x,y)      Serial.printf(x, y)
 	#define DEBUG1_PRINTF2(x,y,z)	Serial.printf(x,y,z)
 	#define DEBUG1_PRINTF3(x,y,z,a)	Serial.printf(x,y,z,a)
+	#define DEBUG1_PRINTFF(fmt, ...) m_printf(fmt"\r\n", ##__VA_ARGS__)
 	#define DEBUG1_WRITE(x)			Serial.write(x)
 #else
 	#define DEBUG1_PRINT(x)

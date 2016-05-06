@@ -1160,7 +1160,7 @@ void initModules() {
 		}
 
 		if (AppSettings.is_mcp) { // I2C init
-			mcp = new MCP();
+			mcp = new MCP(*mqtt);
 			//mcp = new SwIn(*mqtt);
 		}
 

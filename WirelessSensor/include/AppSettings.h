@@ -64,6 +64,7 @@ struct ApplicationSettingsStorage
 
 	String topMSW;
 	String topMIN;
+	String topMIN_L;
 
 	String topWater_h;
 	String topWater_c;
@@ -300,6 +301,7 @@ struct ApplicationSettingsStorage
 
 		topMSW = mqtt["msw"].toString();
 		topMIN = mqtt["min"].toString();
+		topMIN_L = mqtt["min_l"].toString();
 
 		topWater_h = mqtt["water_h"].toString();
 		topWater_c = mqtt["water_c"].toString();
@@ -625,6 +627,7 @@ struct ApplicationSettingsStorage
 
 		mqtt_topic["msw"] = topMSW.c_str();
 		mqtt_topic["min"] = topMIN.c_str();
+		mqtt_topic["min_l"] = topMIN_L.c_str();
 
 		mqtt_topic["water_h"] = topWater_h.c_str();
 		mqtt_topic["water_c"] = topWater_c.c_str();
@@ -776,6 +779,7 @@ struct ApplicationSettingsStorage
 
 		mqtt["msw"] = topMSW.c_str();
 		mqtt["min"] = topMIN.c_str();
+		mqtt["min_l"] = topMIN_L.c_str();
 
 		mqtt["water_h"] = topWater_h.c_str();
 		mqtt["water_c"] = topWater_c.c_str();

@@ -13,15 +13,18 @@
 //#define ESP_INT_PIN		12
 //#define ESP_OUT_PIN 	14
 
-#define DEBOUNCE_TIME 	20
-#define LONG_TIME 		500
+//#define DEBOUNCE_TIME 	20
+//#define LONG_TIME 		500
 
-class MCP: protected MCP23017 {
+typedef Delegate<void(byte num, bool state)> InterruptHandlerDelegate;
+
+class MCP: protected MCP23017, public Sensor {
 
 private:
 	Timer timer;
-	Timer timerBtnHandle;
+	Timer timerBtn;
 	byte pin;
+	InterruptHandlerDelegate interruptHandlerExternal;
 	//bool state = false;
 
 	//byte mcpPinA = 0;
@@ -32,23 +35,19 @@ private:
 	//bool* sw_state;
 	//byte* in;
 
-	void init();
+	void init(InterruptHandlerDelegate interruptHandler);
 	//void initArr(byte sw_cnt, byte in_cnt);
 	void interruptCallback();
 	void interruptHandler();
 	void interruptReset();
 	void longtimeHandler();
-	void turnSw(byte num);
+	bool turnSw(byte num);
 	void publish();
-
+	void loop();
 
 public:
-	MCP();
+	MCP(MQTT &mqtt, InterruptHandlerDelegate interruptHandler = NULL);
 	~MCP();
-	void startTimer();
-	void stopTimer();
-
-
 
 };
 #endif /* INCLUDE_MCP_H_ */
