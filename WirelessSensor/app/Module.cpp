@@ -87,8 +87,8 @@ void SwIn::init(byte scl, byte sda) {
 
 
 	for (byte i=0; i < AppSettings.msw_cnt; i++) {
-		DEBUG4_PRINTF2("ASet.msw[%d]=%d   ", i, AppSettings.msw[i]);
-		DEBUG4_PRINTF2("ASt.msw[%d]=%d   ", i, ActStates.msw[i]);
+		DEBUG4_PRINTF("ASet.msw[%d]=%d   ", i, AppSettings.msw[i]);
+		DEBUG4_PRINTF("ASt.msw[%d]=%d   ", i, ActStates.msw[i]);
 		MCP23017::pinMode(AppSettings.msw[i], OUTPUT);
 		MCP23017::digitalWrite(AppSettings.msw[i], ActStates.msw[i]);
 	}
@@ -113,7 +113,7 @@ void SwIn::interruptReset() {
 	DEBUG4_PRINT("swin.iReset:  ");
 	uint8_t pin = MCP23017::getLastInterruptPin();
 	uint8_t last_state = MCP23017::getLastInterruptPinValue();
-	DEBUG4_PRINTF2("pin=%d state=%d. ", pin, last_state);
+	DEBUG4_PRINTF("pin=%d state=%d. ", pin, last_state);
 	DEBUG4_PRINTLN();
 }
 
@@ -133,7 +133,7 @@ void SwIn::interruptHandler() {
 	//Serial.printf("spent time=%d", (millis() - intTime));
 	//Serial.println();
 
-	DEBUG4_PRINTF2("push pin=%d state=%d. ", pin, act_state);
+	DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
 
 
 	if (act_state == LOW)
@@ -149,7 +149,7 @@ void SwIn::longtimeHandler() {
 
 	uint8_t act_state = MCP23017::digitalRead(pin);
 	while (!(MCP23017::digitalRead(pin)));
-	DEBUG4_PRINTF2("MCP push pin=%d state=%d. ", pin, act_state);
+	DEBUG4_PRINTF("MCP push pin=%d state=%d. ", pin, act_state);
 
 	byte num = AppSettings.getMInNumByPin(pin);
 
@@ -196,7 +196,7 @@ void SwIn::publish() {
 void SwIn::turnSw(byte num) {
 
 	bool state = ActStates.switchMsw(num);
-	DEBUG4_PRINTF2("num=%d; state=%d; ", num, state);
+	DEBUG4_PRINTF("num=%d; state=%d; ", num, state);
 
 	if (state) {
 		DEBUG4_PRINTF(" set msw[%d] to GREEN;  ", num);
@@ -289,7 +289,7 @@ void SensorDHT::publish() {
 SensorBMP::~SensorBMP() {}
 
 void SensorBMP::init(byte scl, byte sda) {
-	DEBUG4_PRINTF2("SensorBMP.init scl=%d, sda=%d", scl, sda); DEBUG4_PRINTLN();
+	DEBUG4_PRINTF("SensorBMP.init scl=%d, sda=%d", scl, sda); DEBUG4_PRINTLN();
 	Wire.pins(scl, sda);
 	Wire.begin();
 }
@@ -563,7 +563,7 @@ void SensorDS::print() {
 	//DEBUG4_PRINTLN("ds.mqtt.name=\"" + this->mqtt->getName() + "\"");
 
 	for (int i=0; i < count; i++) {
-		DEBUG4_PRINTF2("ds: i=%d, t=%4.2f", i, temperature[i]);
+		DEBUG4_PRINTF("ds: i=%d, t=%4.2f", i, temperature[i]);
 		DEBUG4_PRINTLN();
 	}
 

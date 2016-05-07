@@ -21,10 +21,11 @@ typedef Delegate<void(byte num, bool state)> InterruptHandlerDelegate;
 class MCP: protected MCP23017, public Sensor {
 
 private:
-	Timer timer;
 	Timer timerBtn;
 	byte pin;
 	InterruptHandlerDelegate interruptHandlerExternal;
+	bool processInterruption = false;
+
 	//bool state = false;
 
 	//byte mcpPinA = 0;

@@ -68,7 +68,7 @@ public:
 			}
 
 			if (sw_cnt != AppSettings.sw_cnt) {
-				ERROR_PRINTF2("ERROR: ASt.sw_cnt(%d) != AS.sw_cnt(%d)", sw_cnt, AppSettings.sw_cnt);
+				ERROR_PRINTF("ERROR: ASt.sw_cnt(%d) != AS.sw_cnt(%d)", sw_cnt, AppSettings.sw_cnt);
 				sw_cnt = AppSettings.sw_cnt;
 			}
 
@@ -81,7 +81,7 @@ public:
 			}
 
 			if (ssw_cnt != AppSettings.ssw_cnt) {
-				ERROR_PRINTF2("ERROR: ASt.ssw_cnt(%d) != AS.ssw_cnt(%d)", ssw_cnt, AppSettings.ssw_cnt);
+				ERROR_PRINTF("ERROR: ASt.ssw_cnt(%d) != AS.ssw_cnt(%d)", ssw_cnt, AppSettings.ssw_cnt);
 				ssw_cnt = AppSettings.ssw_cnt;
 			}
 
@@ -95,7 +95,7 @@ public:
 			}
 
 			if (msw_cnt != AppSettings.msw_cnt) {
-				ERROR_PRINTF2("ERROR: ASt.msw_cnt(%d) != AS.msw_cnt(%d)", msw_cnt, AppSettings.msw_cnt);
+				ERROR_PRINTF("ERROR: ASt.msw_cnt(%d) != AS.msw_cnt(%d)", msw_cnt, AppSettings.msw_cnt);
 				msw_cnt = AppSettings.msw_cnt;
 			}
 
@@ -333,7 +333,7 @@ public:
 			}
 		}
 		else {
-			ERROR_PRINTF2("ERROR: setMsw wrong number (%d) access. msw_cnt=%d", num, AppSettings.msw_cnt);
+			ERROR_PRINTF("ERROR: setMsw wrong number (%d) access. msw_cnt=%d", num, AppSettings.msw_cnt);
 		}
 	}
 

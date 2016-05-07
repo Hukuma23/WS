@@ -89,7 +89,7 @@ MQTT* mqtt;
 
 void IRAM_ATTR turnSw(byte num, bool state) {
 
-	DEBUG4_PRINTF2("num=%d; state=%d; ", num, state);
+	DEBUG4_PRINTF("num=%d; state=%d; ", num, state);
 
 	ActStates.setSw(num, state);
 
@@ -966,7 +966,7 @@ void ready() {
 
 
 	// If AP is enabled:
-	DEBUG4_PRINTF2("AP. ip: %s mac: %s", WifiAccessPoint.getIP().toString().c_str(), WifiAccessPoint.getMAC().c_str());
+	DEBUG4_PRINTF("AP. ip: %s mac: %s", WifiAccessPoint.getIP().toString().c_str(), WifiAccessPoint.getMAC().c_str());
 	timerWIFI.initializeMs(1000, connectWifi).start();
 	PRINT_MEM();
 }
@@ -1046,7 +1046,7 @@ void switchBootRom() {
 	uint8 before, after;
 	before = rboot_get_current_rom();
 	if (before == 0) after = 1; else after = 0;
-	DEBUG4_PRINTF2("Swapping from rom %d to rom %d.\r\n", before, after);
+	DEBUG4_PRINTF("Swapping from rom %d to rom %d.\r\n", before, after);
 	rboot_set_current_rom(after);
 	DEBUG4_PRINTLN("Restarting...\r\n");
 	System.restart();
