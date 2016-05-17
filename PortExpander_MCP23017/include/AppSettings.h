@@ -536,7 +536,7 @@ struct ApplicationSettingsStorage
 		// Check: Is there same ssid in configuration
 		if (num <= 0) {
 			wifi_cnt++;
-			list.addCopy(String(wifi_cnt), ssid.c_str());
+			list[String(wifi_cnt)] = ssid.c_str();
 			JsonObject& network = jsonBuffer.createObject();
 			network.addCopy("ssid", ssid);
 			network.addCopy("password", password);

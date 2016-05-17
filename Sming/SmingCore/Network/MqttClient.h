@@ -25,10 +25,18 @@ class MqttClient: protected TcpClient
 {
 public:
 	MqttClient(String serverHost, int serverPort, MqttStringSubscriptionCallback callback = NULL);
+	MqttClient(IPAddress serverIp, int serverPort, MqttStringSubscriptionCallback callback = NULL);
 	virtual ~MqttClient();
+
+	void setKeepAlive(int seconds);			//send to broker
+	void setPingRepeatTime(int seconds);            //used by client
+	// Sets Last Will and Testament
+	bool setWill(String topic, String message, int QoS, bool retained = false);
 
 	bool connect(String clientName);
 	bool connect(String clientName, String username, String password);
+
+	using TcpClient::setCompleteDelegate;
 
 	__forceinline bool isProcessing()  { return TcpClient::isProcessing(); }
 	__forceinline TcpClientState getConnectionState() { return TcpClient::getConnectionState(); }
@@ -39,10 +47,6 @@ public:
 	bool subscribe(String topic);
 	bool unsubscribe(String topic);
 
-	void close() {close();}
-	String server;
-	int port;
-
 protected:
 	virtual err_t onReceive(pbuf *buf);
 	virtual void onReadyToSendData(TcpConnectionEvent sourceEvent);
@@ -50,15 +54,18 @@ protected:
 	static int staticSendPacket(void* userInfo, const void* buf, unsigned int count);
 
 private:
-	//String server;
-	//int port;
+	String server;
+	IPAddress serverIp;
+	int port;
 	mqtt_broker_handle_t broker;
 	int waitingSize;
 	uint8_t buffer[MQTT_MAX_BUFFER_SIZE + 1];
 	uint8_t *current;
 	int posHeader;
 	MqttStringSubscriptionCallback callback;
-
+	int keepAlive = 60;
+	int PingRepeatTime = 20;
+	unsigned long lastMessage;
 };
 
 #endif /* _SMING_CORE_NETWORK_MqttClient_H_ */

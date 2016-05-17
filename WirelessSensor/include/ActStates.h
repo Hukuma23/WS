@@ -9,6 +9,7 @@
 
 #include <SmingCore/SmingCore.h>
 #include <Logger.h>
+#include <AppSettings.h>
 
 
 #ifndef INCLUDE_ACTSTATE_H_
@@ -58,6 +59,7 @@ public:
 			fileGetContent(ACT_STATE_FILE, jsonString, size + 1);
 			JsonObject& root = jsonBuffer.parseObject(jsonString);
 
+			/*
 			JsonObject& jSW = root["sw"];
 			byte sw_cnt = jSW["cnt"];
 
@@ -98,6 +100,20 @@ public:
 				ERROR_PRINTF("ERROR: ASt.msw_cnt(%d) != AS.msw_cnt(%d)", msw_cnt, AppSettings.msw_cnt);
 				msw_cnt = AppSettings.msw_cnt;
 			}
+			*/
+
+			byte msw_cnt = root["cnt"];
+
+			if (msw_cnt > 0) {
+				msw = new bool[msw_cnt];
+				for (byte i=0; i < msw_cnt; i++)
+					msw[i] = root[String(i)];
+			}
+
+			if (msw_cnt != AppSettings.msw_cnt) {
+				ERROR_PRINTF("ERROR: ASt.msw_cnt(%d) != AS.msw_cnt(%d)", msw_cnt, AppSettings.msw_cnt);
+				msw_cnt = AppSettings.msw_cnt;
+			}
 
 			delete[] jsonString;
 		}
@@ -130,46 +146,61 @@ public:
 					msw[i] = false;
 			}
 
-			needInit = false;
+
 			this->save();
+			needInit = false;
 			DEBUG4_PRINTLN("ASt.5");
 		}
 	}
 
 	void save()
 	{
+		//StaticJsonBuffer<200> jsonBuffer;
 		DynamicJsonBuffer jsonBuffer;
 		JsonObject& root = jsonBuffer.createObject();
 
+/*
+		JsonObject& jSW = root.createNestedObject("sw");	//JsonObject& jSW = jsonBuffer.createObject();
 		if (AppSettings.sw_cnt > 0) {
-			JsonObject& jSW = jsonBuffer.createObject();
-			root["sw"] = jSW;
 			jSW["cnt"] = AppSettings.sw_cnt;
 			for (byte i=0; i < AppSettings.sw_cnt; i++)
 				jSW[String(i)] = sw[i];
 		}
 
+
+		JsonObject& jSSW = root.createNestedObject("ssw");	//JsonObject& jSSW = jsonBuffer.createObject();
+		//root["ssw"] = jSSW;
 		if (AppSettings.ssw_cnt > 0) {
-			JsonObject& jSSW = jsonBuffer.createObject();
-			root["ssw"] = jSSW;
 			jSSW["cnt"] = AppSettings.ssw_cnt;
 			for (byte i=0; i < AppSettings.ssw_cnt; i++)
 				jSSW[String(i)] = ssw[i];
 		}
 
+
+		JsonObject& jMSW = root.createNestedObject("msw");	//JsonObject& jMSW = jsonBuffer.createObject();
+		//root["msw"] = jMSW;
 		if (AppSettings.msw_cnt > 0) {
-			JsonObject& jMSW = jsonBuffer.createObject();
-			root["msw"] = jMSW;
 			jMSW["cnt"] = AppSettings.msw_cnt;
 			for (byte i=0; i < AppSettings.msw_cnt; i++)
 				jMSW[String(i)] = msw[i];
 		}
+*/
 
-		//TODO: add direct file stream writing
-		fileSetContent(ACT_STATE_FILE, root.toJsonString());
-		DEBUG1_PRINTLN(root.toJsonString());
+		if (AppSettings.msw_cnt > 0) {
+			root["cnt"] = AppSettings.msw_cnt;
+			for (byte i=0; i < AppSettings.msw_cnt; i++)
+				root[String(i)] = msw[i];
+		}
+
+		String str;
+		root.printTo(str);
+
+		fileSetContent(ACT_STATE_FILE, str);
+		DEBUG1_PRINTLN(str);
 		DEBUG1_PRINTLN("States file was saved");
 	}
+
+
 
 	bool exist() { return fileExist(ACT_STATE_FILE); }
 

@@ -198,7 +198,7 @@ struct ApplicationSettingsStorage
 			this->wifi_cnt = cnt - 1;
 
 			for (uint8_t i=0; i < this->wifi_cnt; i++) {
-				this->wifiList[i] = list[String(i+1)].toString();
+				this->wifiList[i] = (const char*)list[String(i+1)];
 			}
 
 
@@ -232,8 +232,8 @@ struct ApplicationSettingsStorage
 
 			if (zero) {
 				JsonObject& list = networks["list"];
-				JsonObject& network = networks[list[String(network_ind)].toString()];
-				ssid = network["ssid"].toString();
+				JsonObject& network = networks[(const char*)list[String(network_ind)]];
+				ssid = (const char*)network["ssid"];
 
 				if (network_ind == 0) {
 					if (list.containsKey("0")) {
@@ -249,20 +249,20 @@ struct ApplicationSettingsStorage
 			JsonObject& network = networks[ssid];
 			this->ssid = ssid;
 
-			password = network["password"].toString();
+			password = (const char*)network["password"];
 			dhcp = network["dhcp"];
 			//ip = network["ip"].toString();
 			//netmask = network["netmask"].toString();
 			//gateway = network["gateway"].toString();
 
 			JsonObject& mqtt = network["mqtt"];
-			broker_ip = mqtt["broker_ip"].toString();
+			broker_ip = (const char*)mqtt["broker_ip"];
 			broker_port = mqtt["broker_port"];
 
 			JsonObject& ota = network["ota"];
-			rom0 = ota["rom0"].toString();
+			rom0 = (const char*)ota["rom0"];
 			//rom1 = ota["rom1"].toString();
-			spiffs = ota["spiffs"].toString();
+			spiffs = (const char*)ota["spiffs"];
 
 			return 0;
 		}
@@ -276,35 +276,35 @@ struct ApplicationSettingsStorage
 
 		JsonObject& config = root["config"];
 		serial_speed = config["serial_speed"];
-		version = config["version"].toString();
+		version = (const char*)config["version"];
 
 		JsonObject& mqtt = config["mqtt_topic"];
-		main_topic = mqtt["main_topic"].toString();
-		client_topic = mqtt["client_topic"].toString();
+		main_topic = (const char*)mqtt["main_topic"];
+		client_topic = (const char*)mqtt["client_topic"];
 
-		topConfig = mqtt["config"].toString();
-		topLog = mqtt["log"].toString();
-		topStart = mqtt["start"].toString();
-		topVCC = mqtt["vcc"].toString();
+		topConfig = (const char*)mqtt["config"];
+		topLog = (const char*)mqtt["log"];
+		topStart = (const char*)mqtt["start"];
+		topVCC = (const char*)mqtt["vcc"];
 
 
-		topDHT_t = mqtt["dht_t"].toString();
-		topDHT_h = mqtt["dht_h"].toString();
+		topDHT_t = (const char*)mqtt["dht_t"];
+		topDHT_h = (const char*)mqtt["dht_h"];
 
-		topBMP_t = mqtt["bmp_t"].toString();
-		topBMP_p = mqtt["bmp_p"].toString();
+		topBMP_t = (const char*)mqtt["bmp_t"];
+		topBMP_p = (const char*)mqtt["bmp_p"];
 
-		topDS_t = mqtt["ds_t"].toString();
+		topDS_t = (const char*)mqtt["ds_t"];
 
-		topSW = mqtt["sw"].toString();
-		topSSW = mqtt["ssw"].toString();
+		topSW = (const char*)mqtt["sw"];
+		topSSW = (const char*)mqtt["ssw"];
 
-		topMSW = mqtt["msw"].toString();
-		topMIN = mqtt["min"].toString();
-		topMIN_L = mqtt["min_l"].toString();
+		topMSW = (const char*)mqtt["msw"];
+		topMIN = (const char*)mqtt["min"];
+		topMIN_L = (const char*)mqtt["min_l"];
 
-		topWater_h = mqtt["water_h"].toString();
-		topWater_c = mqtt["water_c"].toString();
+		topWater_h = (const char*)mqtt["water_h"];
+		topWater_c = (const char*)mqtt["water_c"];
 
 		JsonObject& pins = config["pins"];
 		sda = pins["sda"];
@@ -514,7 +514,8 @@ struct ApplicationSettingsStorage
 
 			DEBUG4_PRINTLN("root.toJsonString");
 
-			String appSettings = root.toJsonString();
+			String appSettings;
+			root.printTo(appSettings);
 			PRINT_MEM();
 			DEBUG4_PRINTLN(appSettings);
 			PRINT_MEM();
@@ -555,14 +556,14 @@ struct ApplicationSettingsStorage
 		// Check: Is there same ssid in configuration
 		if (num <= 0) {
 			wifi_cnt++;
-			list.addCopy(String(wifi_cnt), ssid.c_str());
+			list[String(wifi_cnt)] = ssid.c_str();
 			JsonObject& network = jsonBuffer.createObject();
-			network.addCopy("ssid", ssid);
-			network.addCopy("password", password);
+			network["ssid"] = ssid;
+			network["password"] = password;
 			network["dhcp"] = dhcp;
-			network.addCopy("ip", ip.toString());
-			network.addCopy("netmask", netmask.toString());
-			network.addCopy("gateway", gateway.toString());
+			network["ip"] = ip.toString();
+			network["netmask"] = netmask.toString();
+			network["gateway"] = gateway.toString();
 
 			JsonObject& ota = jsonBuffer.createObject();
 			ota["rom0"] = rom0.c_str();
@@ -708,8 +709,9 @@ struct ApplicationSettingsStorage
 
 
 		}
-
-		fileSetContent(APP_SETTINGS_FILE, root.toJsonString());
+		String str;
+		root.printTo(str);
+		fileSetContent(APP_SETTINGS_FILE, str);
 		DEBUG4_PRINTLN(root.toJsonString());
 		INFO_PRINTLN("Settings file was saved");
 

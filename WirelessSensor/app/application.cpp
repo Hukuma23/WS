@@ -12,6 +12,7 @@
 #include <MQTT.h>
 #include <Module.h>
 #include <MCP.h>
+#include <SerialConnector.h>
 
 //FTPServer ftp;
 
@@ -221,6 +222,10 @@ void onMessageReceived(String topic, String message) {
 		}
 	}
 
+	// MSW
+	if (mcp) {
+		mcp->processCallback(topic, message);
+	}
 	// *** Serial block ***
 
 	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
@@ -254,7 +259,7 @@ void onMessageReceived(String topic, String message) {
 		JsonObject& root = jsonBuffer.parseObject(msgBuff);
 		//DEBUG4_PRINTLN("JSON 3");
 
-		String cmd = root["cmd"].toString();
+		String cmd = root["cmd"];
 		//DEBUG4_PRINTLN("JSON 4");
 		DEBUG4_PRINTLN("cmd = " + cmd);
 		//DEBUG4_PRINTLN("JSON 5");
@@ -423,6 +428,7 @@ void publishSerial() {
 void mqtt_loop() {
 
 	INFO_PRINTLN("_mqtt_loop");
+	mqtt->publish(AppSettings.topLog+"_mem",OUT,String(system_get_free_heap_size()));
 	PRINT_MEM();
 
 	publishSwitches();
@@ -436,7 +442,7 @@ void mqtt_loop() {
 	//DEBUG4_PRINT(vcc);
 	//DEBUG4_PRINTLN(" mV");
 
-	PRINT_MEM();
+
 	INFO_PRINTLN("_user_loop.end");
 	// Go to deep sleep
 	//system_deep_sleep_set_option(1);
@@ -1130,7 +1136,7 @@ void configureNetwork() {
 
 	//Serial.setCallback(serialCallBack);
 }
-*/
+ */
 
 void initModules() {
 	if (AppSettings.exist()) {

@@ -23,7 +23,6 @@
 #define DEFAULT_INTERVAL 	60000
 
 class Sensor;
-class SwIn;
 class SensorDHT;
 class SensorBMP;
 class SensorDS;
@@ -58,29 +57,6 @@ public:
 	void stopTimer();
 
 	void setMqtt(MQTT &mqtt);
-};
-
-class SwIn: protected MCP23017, public Sensor {
-
-private:
-	Timer btnTimer;
-	byte pin;
-	void init(byte scl, byte sda);
-	void interruptReset();
-	void interruptCallback();
-	void interruptHandler();
-	void longtimeHandler();
-	void turnSw(byte num);
-
-
-public:
-	SwIn(MQTT &mqtt);
-	SwIn(byte scl, byte sda, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
-	~SwIn();
-	void compute();
-	void publish();
-	float getTemperature();
-	float getHumidity();
 };
 
 class SensorDHT: protected DHT, public Sensor {

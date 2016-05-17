@@ -34,14 +34,7 @@ extern "C" {
 
 #include <stdint.h>
 
-#ifndef MQTT_CONF_USERNAME_LENGTH
-	#define MQTT_CONF_USERNAME_LENGTH 13 // Recommended by MQTT Specification (12 + '\0')
-#endif
-
-#ifndef MQTT_CONF_PASSWORD_LENGTH
-	#define MQTT_CONF_PASSWORD_LENGTH 13 // Recommended by MQTT Specification (12 + '\0')
-#endif
-
+#define MQTT_DEFAULT_CLIENTID "emqtt"
 
 #define MQTT_MSG_CONNECT       1<<4
 #define MQTT_MSG_CONNACK       2<<4
@@ -88,7 +81,6 @@ extern "C" {
  * @retval !=0 Duplicate.
  */
 #define MQTTParseMessageRetain(buffer) ( *buffer & 0x01 )
-
 
 /** Parse packet buffer for number of bytes in remaining length field.
  *
@@ -161,13 +153,15 @@ typedef struct {
 	void* socket_info;
 	int (*send)(void* socket_info, const void* buf, unsigned int count);
 	// Connection info
-	char clientid[50];
+	char* clientid;
 	// Auth fields
-	char username[MQTT_CONF_USERNAME_LENGTH];
-	char password[MQTT_CONF_PASSWORD_LENGTH];
+	char* username;
+	char* password;
 	// Will topic
 	uint8_t will_retain;
 	uint8_t will_qos;
+	char* will_topic;
+	char* will_message;
 	uint8_t clean_session;
 	// Management fields
 	uint16_t seq;
@@ -177,11 +171,18 @@ typedef struct {
 
 /** Initialize the information to connect to the broker.
  * @param broker Data structure that contains the connection information with the broker.
- * @param clientid A string that identifies the client id.
  *
  * @note Only has effect before to call mqtt_connect
  */
-void mqtt_init(mqtt_broker_handle_t* broker, const char* clientid);
+void mqtt_init(mqtt_broker_handle_t* broker);
+
+/** Sets the clientid
+ * @param broker Data structure that contains the connection information with the broker.
+ * @param clientid A string that identifies the client id.
+ *
+ * @note Only has effect before call to mqtt_connect
+ */
+int mqtt_set_clientid(mqtt_broker_handle_t* broker, const char* clientid);
 
 /** Enable the authentication to connect to the broker.
  * @param broker Data structure that contains the connection information with the broker.
@@ -190,7 +191,21 @@ void mqtt_init(mqtt_broker_handle_t* broker, const char* clientid);
  *
  * @note Only has effect before to call mqtt_connect
  */
-void mqtt_init_auth(mqtt_broker_handle_t* broker, const char* username, const char* password);
+int mqtt_init_auth(mqtt_broker_handle_t* broker, const char* username, const char* password);
+
+/*
+* @param broker Data structure that contains the connection information with the broker.
+* @param topic The topic to which the last will should be sent
+* @param message The message of the last will
+* @param qos The Quality of Service for the last will (0,1 or 2)
+* @param retain Sets if the last will should be retained
+*
+* @retval  1 On success.
+* @retval  0 On error.
+*
+* @note Only has effect before to call mqtt_connect
+*/
+int mqtt_set_will(mqtt_broker_handle_t* broker, const char* topic, const char* message, uint8_t qos, uint8_t retain);
 
 /** Set the keep alive timer.
  * @param broker Data structure that contains the connection information with the broker.
@@ -286,6 +301,13 @@ int mqtt_unsubscribe(mqtt_broker_handle_t* broker, const char* topic, uint16_t* 
  * @retval -1 On IO error.
  */
 int mqtt_ping(mqtt_broker_handle_t* broker);
+
+/**
+ * Frees dynamically allocated resources
+ *
+ * @param broker Data structure that contains the connection information with the broker.
+ */
+void mqtt_free(mqtt_broker_handle_t* broker);
 
 #ifdef __cplusplus
 }
