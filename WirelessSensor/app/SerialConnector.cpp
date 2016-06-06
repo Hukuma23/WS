@@ -42,12 +42,18 @@ void SerialConnector::stopSerialReceiver() {
 	timerSerialReceiver.stop();
 }
 
+void SerialConnector::startListener() {
+	SerialGuaranteedDeliveryProtocol::startListener(AppSettings.interval_listener);
+}
+
 void SerialConnector::stopListener() {
 	stopListening();
 }
 
-void SerialConnector::startListener() {
-	SerialGuaranteedDeliveryProtocol::startListener(AppSettings.interval_listener);
+void SerialConnector::stopTimers() {
+	stopSerialCollector();
+	stopSerialReceiver();
+	stopListening();
 }
 
 uint8_t SerialConnector::sendSerialMessage(uint8_t cmd, uint8_t objType, uint8_t objId, uint8_t sw) {
@@ -260,4 +266,20 @@ void SerialConnector::publishSerialSwitches() {
 void SerialConnector::publish() {
 	publishSerialSwitches();
 	publishSerialSensors();
+}
+
+bool SerialConnector::processCallback(String topic, String message) {
+
+	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
+		if (topic.equals(mqtt->getTopic(AppSettings.topSSW, (i+1), IN))) {
+			if (message.equals("ON")) {
+				turnSsw(i, HIGH);
+			} else if (message.equals("OFF")) {
+				turnSsw(i, LOW);
+			} else
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(AppSettings.topSSW, (i+1), IN)).c_str());
+		}
+	}
+
+	return false;
 }

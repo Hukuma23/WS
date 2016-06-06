@@ -34,6 +34,7 @@ public:
 	void stopSerialCollector();
 	void stopSerialReceiver();
 	void stopListener();
+	void stopTimers();
 
 	void startListener();
 	uint8_t virtual sendSerialMessage(uint8_t cmd, uint8_t objType, uint8_t objId, uint8_t sw = 0);
@@ -59,6 +60,8 @@ public:
 	void publishSerialSwitches();
 
 	void publish();
+
+	bool processCallback(String topic, String message);
 
 
 

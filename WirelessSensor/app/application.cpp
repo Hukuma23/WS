@@ -201,18 +201,10 @@ void onMessageReceived(String topic, String message) {
 		mcp->processCallback(topic, message);
 	}
 	// *** Serial block ***
+	if (serialConnector)
+		serialConnector->processCallback(topic, message);
 
-	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
-		if (topic.equals(mqtt->getTopic(AppSettings.topSSW, (i+1), IN))) {
-			if (message.equals("ON")) {
-				serialConnector->turnSsw(i, HIGH);
-			} else if (message.equals("OFF")) {
-				serialConnector->turnSsw(i, LOW);
-			} else
-				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(AppSettings.topSSW, (i+1), IN)).c_str());
-		}
-	}
-	// *** Serial block end ***
+
 	if (topic.equals(mqtt->getTopic(AppSettings.topConfig, IN))) {
 
 		int msgLen = message.length() + 1;
@@ -386,9 +378,7 @@ void stopAllTimers(void) {
 
 
 	if (serialConnector) {
-		serialConnector->stopSerialCollector();
-		serialConnector->stopSerialReceiver();
-		serialConnector->stopListener();
+		serialConnector->stopTimers();
 
 	}
 }
@@ -488,35 +478,35 @@ void saveDefaultWifi()
 
 void startTimers() {
 
-	if (mqtt != NULL) {
+	if (mqtt) {
 		DEBUG4_PRINT("mqttTimer.. ");
 		mqtt->startTimer(mqtt_loop); //timerMQTT.initializeMs(AppSettings.shift_mqtt, setMQTT).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 	}
 
-	if (dsSensor != NULL) {
+	if (dsSensor) {
 		DEBUG4_PRINT("dsTimer.. ");
 		dsSensor->startTimer(); //timerDS.initializeMs(AppSettings.shift_ds, setReadOneWire).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 	}
 
-	if (dhtSensor != NULL) {
+	if (dhtSensor) {
 		DEBUG4_PRINT("dhtTimer.. ");
 		dhtSensor->startTimer();	//timerDHT.initializeMs(AppSettings.shift_dht, setReadDHT).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 	}
 
-	if (bmpSensor != NULL) {
+	if (bmpSensor) {
 		DEBUG4_PRINT("bmpTimer.. ");
 		bmpSensor->startTimer();	//timerBMP.initializeMs(AppSettings.shift_bmp, setReadBMP).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 	}
 
-	if (mcp != NULL) {
+	if (mcp) {
 		DEBUG4_PRINT("mcpTimer.. ");
 		mcp->startTimer();
 		delay(50);
@@ -677,20 +667,23 @@ void checkWifi(void) {
 	//Stop timers
 	DEBUG4_PRINT("All Timers are...");
 
-	if (mqtt != NULL)
+	if (mqtt)
 		mqtt->stopTimer();
 
-	if (dsSensor != NULL)
+	if (dsSensor)
 		dsSensor->stopTimer();
 
-	if (dhtSensor != NULL)
+	if (dhtSensor)
 		dhtSensor->stopTimer();
 
-	if (bmpSensor != NULL)
+	if (bmpSensor)
 		bmpSensor->stopTimer();
 
-	if (mcp != NULL)
+	if (mcp)
 		mcp->stopTimer();
+
+	if (serialConnector)
+		serialConnector->stopTimers();
 
 	timerWIFI.stop();
 	DEBUG4_PRINTLN(" stopped");
