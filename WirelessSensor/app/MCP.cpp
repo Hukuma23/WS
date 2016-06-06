@@ -133,7 +133,7 @@ bool MCP::turnSw(byte num, bool state) {
 
 
 		if (mqtt)
-			mqtt->publish(AppSettings.topMSW, num, OUT, (state?"ON":"OFF"));
+			mqtt->publish(AppSettings.topMSW, num+1, OUT, (state?"ON":"OFF"));
 
 		if (state) {
 			AppSettings.led.showOn(num);
