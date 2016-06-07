@@ -81,14 +81,20 @@ void MCP::longtimeHandler() {
 	DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
 
 	byte num = AppSettings.getMInNumByPin(pin);
+	bool isLong = false;
 
 	if (act_state == LOW) {
 		//if (mqtt)
 		//	mqtt->publish(AppSettings.topMIN_L, num+1, OUT, (ActStates.msw[num]?"ON":"OFF"));
+		isLong = true;
 		DEBUG1_PRINTLN("*-long-*");
 	}
-	else
+	else {
+		isLong = false;
 		DEBUG1_PRINTLN("*-short-*");
+	}
+
+	publish(num, ActStates.msw[num], isLong);
 
 	attachInterrupt(AppSettings.m_int, Delegate<void()>(&MCP::interruptCallback, this), FALLING);
 }
@@ -131,10 +137,13 @@ bool MCP::turnSw(byte num, bool state) {
 		ActStates.setMsw(num, state);
 		MCP23017::digitalWrite(AppSettings.msw[num], state);
 
-
+/* Логирование перенесено во MCP::publish(byte num, bool state, bool longPressed)
 		if (mqtt)
-			mqtt->publish(AppSettings.topMSW, num+1, OUT, (state?"ON":"OFF"));
-
+			if (longPressed)
+				mqtt->publish(AppSettings.topMIN_L, num+1, OUT, (state?"ON":"OFF"));
+			else
+				mqtt->publish(AppSettings.topMIN, num+1, OUT, (state?"ON":"OFF"));
+*/
 		if (state) {
 			AppSettings.led.showOn(num);
 		}
@@ -143,6 +152,15 @@ bool MCP::turnSw(byte num, bool state) {
 		}
 	}
 	return state;
+}
+
+void MCP::publish(byte num, bool state, bool longPressed) {
+	if (mqtt)
+		if (longPressed)
+			mqtt->publish(AppSettings.topMIN_L, num+1, OUT, (state?"ON":"OFF"));
+		else
+			mqtt->publish(AppSettings.topMIN, num+1, OUT, (state?"ON":"OFF"));
+
 }
 
 bool MCP::turnSw(byte num) {

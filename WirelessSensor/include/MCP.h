@@ -30,6 +30,7 @@ private:
 	void interruptReset();
 	void longtimeHandler();
 	void publish();
+	void publish(byte num, bool state, bool longPressed = false);
 	void start();
 
 public:
@@ -38,6 +39,7 @@ public:
 	void startTimer();
 	void stopTimer();
 	bool turnSw(byte num);
+	//bool turnSw(byte num, bool state);
 	bool turnSw(byte num, bool state);
 
 	bool processCallback(String topic, String message);
