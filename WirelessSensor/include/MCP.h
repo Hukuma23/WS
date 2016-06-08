@@ -1,7 +1,9 @@
 #include <SmingCore/SmingCore.h>
 #include <Libraries/MCP23017/MCP23017.h>
-#include <Module.h>
 #include <Logger.h>
+#include <AppSettings.h>
+#include <ActStates.h>
+#include <MQTT.h>
 
 #ifndef INCLUDE_MCP_H_
 #define INCLUDE_MCP_H_
