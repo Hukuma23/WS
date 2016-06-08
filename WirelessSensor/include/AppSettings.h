@@ -13,10 +13,12 @@
 
 //#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
 #define APP_SETTINGS_FILE "settings.conf" // There is no leading point for security reasons :)
+#define HTTP_TRY_PERIOD 5000
+#define MIN_FILE_SIZE	100
 
 struct ApplicationSettingsStorage
 {
-	uint32_t serial_speed = SERIAL_BAUD_RATE;
+	uint32_t serial_speed = 115200;
 	String version = "Unknown";
 
 	// NETWORK
@@ -33,14 +35,40 @@ struct ApplicationSettingsStorage
 
 	// OTA
 	String rom0;
-	String rom1;
+	//String rom1;
 	String spiffs;
 
 	// MQTT
 	String main_topic;
 	String client_topic;
-	IPAddress broker_ip;
+	String broker_ip;
 	int broker_port;
+
+	//MQTT topic names
+	String topConfig;
+	String topLog;
+	String topStart;
+	String topVCC;
+
+
+	String topDHT_t;
+	String topDHT_h;
+
+	String topBMP_t;
+	String topBMP_p;
+
+	String topDS_t;
+
+	String topSW;
+	String topSSW;
+
+	String topMSW;
+	String topMIN;
+	String topMIN_L;
+
+	String topWater_h;
+	String topWater_c;
+
 
 	// PINS
 	byte sda;
@@ -60,6 +88,19 @@ struct ApplicationSettingsStorage
 	byte in_cnt=0;
 	LED led;
 
+	byte* msw;
+	byte msw_cnt;
+	byte* min;
+	byte min_cnt;
+	byte m_int;
+
+	// HTTP
+	HttpClient httpClient;
+	String urlFW[2] = {"http://10.0.1.22:8080/ota/settings.conf", "http://10.4.1.59:8080/Blink/settings.conf"};
+	uint8_t urlIndex = 0;
+	Timer timerHttp;
+
+
 	// MODULES
 	bool is_wifi = false;
 	bool is_dht = false;
@@ -67,6 +108,7 @@ struct ApplicationSettingsStorage
 	bool is_ds = false;
 	bool is_serial = false;
 	bool is_insw = false;
+	bool is_mcp = false;
 
 	// TIMERS
 	unsigned long shift_mqtt = 10000;
@@ -76,6 +118,7 @@ struct ApplicationSettingsStorage
 	unsigned long shift_wifi = 25000;
 	unsigned long shift_collector = 3000;
 	unsigned long shift_receiver = 16000;
+	unsigned long shift_mcp = 12000;
 
 	unsigned long interval_mqtt = 30000;
 	unsigned long interval_dht = 60000;
@@ -85,8 +128,10 @@ struct ApplicationSettingsStorage
 	unsigned long interval_listener = 200;
 	unsigned long interval_collector = 30000;
 	unsigned long interval_receiver = 30000;
-	unsigned long debounce_time = 1000;
+	unsigned long interval_mcp = 30000;
 
+	unsigned long debounce_time = 20;
+	unsigned long long_time = 500;
 
 	ApplicationSettingsStorage() {
 		//Initialization of rBoot OTA
@@ -95,6 +140,42 @@ struct ApplicationSettingsStorage
 		load();
 		loadNetwork();
 
+	}
+
+	byte getMInNumByPin(byte pin) {
+		if ((min_cnt > 0) && (pin >=0) && (pin < 16)){
+			for (byte i = 0; i < min_cnt; i++) {
+				if (min[i] == pin)
+					return i;
+			}
+		}
+		return -1;
+	}
+
+	/*
+	byte getMSwNumByPin(byte pin) {
+		if ((msw_cnt > 0) && (pin >=0) && (pin < 16))  {
+			for (byte i = 0; i < msw_cnt; i++) {
+				if (msw[i] == pin)
+					return i;
+			}
+		}
+		return -1;
+	}
+	 */
+
+	byte getMSwPinByNum(byte num) {
+		if ((num >= 0) && (num < msw_cnt))
+			return msw[num];
+
+		return -1;
+	}
+
+	byte getMInPinByNum(byte num) {
+		if ((num >= 0) && (num < min_cnt))
+			return min[num];
+
+		return -1;
 	}
 
 	void loadWifiList() {
@@ -117,7 +198,7 @@ struct ApplicationSettingsStorage
 			this->wifi_cnt = cnt - 1;
 
 			for (uint8_t i=0; i < this->wifi_cnt; i++) {
-				this->wifiList[i] = list[String(i+1)].toString();
+				this->wifiList[i] = (const char*)list[String(i+1)];
 			}
 
 
@@ -125,59 +206,6 @@ struct ApplicationSettingsStorage
 
 		}
 	}
-
-	/*
-	int8_t loadNetwork(void) {
-
-		if ((this->network_ind < 0) || (this->network_ind > 5)) {
-			return -1;
-		}
-
-		// the last complete wifi will stored in network_ind == 0
-		DynamicJsonBuffer jsonBuffer;
-		if (exist()) {
-			int size = fileGetSize(APP_SETTINGS_FILE);
-			char* jsonString = new char[size + 1];
-			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
-			JsonObject& root = jsonBuffer.parseObject(jsonString);
-
-			JsonObject& config = root["config"];
-			JsonObject& networks = config["networks"];
-			JsonObject& list = networks["list"];
-
-			String networkName = list[String(network_ind)].toString();
-			JsonObject& network = networks[networkName];
-
-			if (network_ind == 0) {
-				if (list.containsKey("0"))
-					ssid = network["ssid"].toString();
-				else {
-					delete[] jsonString;
-					return -1;
-				}
-			}
-
-			password = network["password"].toString();
-			dhcp = network["dhcp"];
-			ip = network["ip"].toString();
-			netmask = network["netmask"].toString();
-			gateway = network["gateway"].toString();
-
-			JsonObject& mqtt = network["mqtt"];
-			broker_ip = mqtt["broker_ip"].toString();
-			broker_port = mqtt["broker_port"];
-
-			JsonObject& ota = network["ota"];
-			rom0 = ota["rom0"].toString();
-			rom1 = ota["rom1"].toString();
-			spiffs = ota["spiffs"].toString();
-
-			delete[] jsonString;
-			return 0;
-		}
-		return -1;
-	}
-	 */
 
 	int8_t loadNetwork(String ssid = "") {
 
@@ -204,8 +232,8 @@ struct ApplicationSettingsStorage
 
 			if (zero) {
 				JsonObject& list = networks["list"];
-				JsonObject& network = networks[list[String(network_ind)].toString()];
-				ssid = network["ssid"].toString();
+				JsonObject& network = networks[(const char*)list[String(network_ind)]];
+				ssid = (const char*)network["ssid"];
 
 				if (network_ind == 0) {
 					if (list.containsKey("0")) {
@@ -221,20 +249,20 @@ struct ApplicationSettingsStorage
 			JsonObject& network = networks[ssid];
 			this->ssid = ssid;
 
-			password = network["password"].toString();
+			password = (const char*)network["password"];
 			dhcp = network["dhcp"];
 			//ip = network["ip"].toString();
 			//netmask = network["netmask"].toString();
 			//gateway = network["gateway"].toString();
 
 			JsonObject& mqtt = network["mqtt"];
-			broker_ip = mqtt["broker_ip"].toString();
+			broker_ip = (const char*)mqtt["broker_ip"];
 			broker_port = mqtt["broker_port"];
 
 			JsonObject& ota = network["ota"];
-			rom0 = ota["rom0"].toString();
-			rom1 = ota["rom1"].toString();
-			spiffs = ota["spiffs"].toString();
+			rom0 = (const char*)ota["rom0"];
+			//rom1 = ota["rom1"].toString();
+			spiffs = (const char*)ota["spiffs"];
 
 			return 0;
 		}
@@ -242,165 +270,223 @@ struct ApplicationSettingsStorage
 		return -1;
 	}
 
+	void load(char* jsonString) {
+		DynamicJsonBuffer jsonBuffer;
+		JsonObject& root = jsonBuffer.parseObject(jsonString);
+
+		JsonObject& config = root["config"];
+		serial_speed = config["serial_speed"];
+		version = (const char*)config["version"];
+
+		JsonObject& mqtt = config["mqtt_topic"];
+		main_topic = (const char*)mqtt["main_topic"];
+		client_topic = (const char*)mqtt["client_topic"];
+
+		topConfig = (const char*)mqtt["config"];
+		topLog = (const char*)mqtt["log"];
+		topStart = (const char*)mqtt["start"];
+		topVCC = (const char*)mqtt["vcc"];
+
+
+		topDHT_t = (const char*)mqtt["dht_t"];
+		topDHT_h = (const char*)mqtt["dht_h"];
+
+		topBMP_t = (const char*)mqtt["bmp_t"];
+		topBMP_p = (const char*)mqtt["bmp_p"];
+
+		topDS_t = (const char*)mqtt["ds_t"];
+
+		topSW = (const char*)mqtt["sw"];
+		topSSW = (const char*)mqtt["ssw"];
+
+		topMSW = (const char*)mqtt["msw"];
+		topMIN = (const char*)mqtt["min"];
+		topMIN_L = (const char*)mqtt["min_l"];
+
+		topWater_h = (const char*)mqtt["water_h"];
+		topWater_c = (const char*)mqtt["water_c"];
+
+		JsonObject& pins = config["pins"];
+		sda = pins["sda"];
+		scl = pins["scl"];
+		dht = pins["dht"];
+		ds = pins["ds"];
+		m_int = pins["mint"];
+
+		if (pins.containsKey("sw")) {
+			JsonObject& jSw = pins["sw"];
+			this->sw_cnt = (byte)jSw["cnt"];
+			sw = new byte[sw_cnt];
+			for (byte i = 0; i < sw_cnt; i++ ) {
+				if (jSw.containsKey(String(i+1).c_str()))
+					this->sw[i] = jSw[String(i+1)];
+			}
+		}
+
+		if (pins.containsKey("ssw")) {
+			JsonObject& jSsw = pins["ssw"];
+			this->ssw_cnt = (byte)jSsw["cnt"];
+			ssw = new byte[ssw_cnt];
+			for (byte i = 0; i < ssw_cnt; i++ ) {
+				if (jSsw.containsKey(String(i+1).c_str()))
+					this->ssw[i] = jSsw[String(i+1)];
+			}
+		}
+
+		if (pins.containsKey("mcp")) {
+			JsonObject& jMCP = pins["mcp"];
+
+			if (jMCP.containsKey("sw")) {
+				JsonObject& jMSW = jMCP["sw"];
+				this->msw_cnt = (byte)jMSW["cnt"];
+				msw = new byte[msw_cnt];
+				for (byte i = 0; i < msw_cnt; i++ ) {
+					if (jMSW.containsKey(String(i+1).c_str()))
+						this->msw[i] = jMSW[String(i+1)];
+				}
+			}
+
+			if (jMCP.containsKey("in")) {
+				JsonObject& jMIN = jMCP["in"];
+				this->min_cnt = (byte)jMIN["cnt"];
+				min = new byte[min_cnt];
+				for (byte i = 0; i < min_cnt; i++ ) {
+					if (jMIN.containsKey(String(i+1).c_str()))
+						this->min[i] = jMIN[String(i+1)];
+				}
+			}
+		}
+
+		if (pins.containsKey("led")) {
+			JsonObject& jLed = pins["led"];
+			this->led.setCount((byte)jLed["cnt"]);
+			this->led.setPin((byte)jLed["pin"]);
+		}
+
+		if (pins.containsKey("in")) {
+			JsonObject& jIn = pins["in"];
+			this->in_cnt = (byte)jIn["cnt"];
+
+			if (in_cnt > 0) {
+				in = new byte[in_cnt];
+				for (byte i = 0; i < in_cnt; i++ ) {
+					if (jIn.containsKey(String(i+1).c_str()))
+						this->in[i] = jIn[String(i+1)];
+				}
+			}
+		}
+
+		JsonObject& modules = config["modules"];
+		is_dht = modules["is_dht"];
+		is_bmp = modules["is_bmp"];
+		is_ds = modules["is_ds"];
+		is_wifi = modules["is_wifi"];
+		is_serial = modules["is_serial"];
+		is_insw = modules["is_insw"];
+		is_mcp = modules["is_mcp"];
+
+		JsonObject& timers = config["timers"];
+		shift_mqtt = timers["shift_mqtt"];
+		shift_dht = timers["shift_dht"];
+		shift_bmp = timers["shift_bmp"];
+		shift_ds = timers["shift_ds"];
+		shift_wifi = timers["shift_wifi"];
+		shift_collector = timers["shift_collector"];
+		shift_receiver = timers["shift_receiver"];
+		shift_mcp = timers["shift_mcp"];
+
+		interval_mqtt = timers["interval_mqtt"];
+		interval_dht = timers["interval_dht"];
+		interval_bmp = timers["interval_bmp"];
+		interval_ds = timers["interval_ds"];
+		interval_wifi = timers["interval_wifi"];
+		interval_listener = timers["interval_listener"];
+		interval_collector = timers["interval_collector"];
+		interval_receiver = timers["interval_receiver"];
+		interval_mcp = timers["interval_mcp"];
+
+		debounce_time = timers["debounce_time"];
+		long_time = timers["long_time"];
+
+		delete[] jsonString;
+	}
 
 
 	void load() {
-		DynamicJsonBuffer jsonBuffer;
-		if (exist())
-		{
+		if (exist()) {
+
 			int size = fileGetSize(APP_SETTINGS_FILE);
+
 			char* jsonString = new char[size + 1];
 			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
-			JsonObject& root = jsonBuffer.parseObject(jsonString);
 
-			JsonObject& config = root["config"];
-			serial_speed = config["serial_speed"];
-			version = config["version"].toString();
-
-			JsonObject& mqtt = config["mqtt_topic"];
-			main_topic = mqtt["main_topic"].toString();
-			client_topic = mqtt["client_topic"].toString();
-
-			JsonObject& pins = config["pins"];
-			sda = pins["sda"];
-			scl = pins["scl"];
-			dht = pins["dht"];
-			ds = pins["ds"];
-
-			if (pins.containsKey("sw")) {
-				JsonObject& jSw = pins["sw"];
-				this->sw_cnt = (byte)jSw["cnt"];
-				sw = new byte[sw_cnt];
-				for (byte i = 0; i < sw_cnt; i++ ) {
-					if (jSw.containsKey(String(i+1).c_str()))
-						this->sw[i] = jSw[String(i+1)];
-				}
-			}
-
-			if (pins.containsKey("ssw")) {
-				JsonObject& jSsw = pins["ssw"];
-				this->sw_cnt = (byte)jSsw["cnt"];
-				ssw = new byte[ssw_cnt];
-				for (byte i = 0; i < ssw_cnt; i++ ) {
-					if (jSsw.containsKey(String(i+1).c_str()))
-						this->ssw[i] = jSsw[String(i+1)];
-				}
-			}
-
-			if (pins.containsKey("led")) {
-				JsonObject& jLed = pins["led"];
-				this->led.setCount((byte)jLed["cnt"]);
-				this->led.setPin((byte)jLed["pin"]);
-			}
-
-			if (pins.containsKey("in")) {
-				JsonObject& jIn = pins["in"];
-				this->in_cnt = (byte)jIn["cnt"];
-
-				if (in_cnt > 0) {
-					in = new byte[in_cnt];
-					for (byte i = 0; i < in_cnt; i++ ) {
-						if (jIn.containsKey(String(i+1).c_str()))
-							this->in[i] = jIn[String(i+1)];
-					}
-				}
-			}
-
-			JsonObject& modules = config["modules"];
-			is_dht = modules["is_dht"];
-			is_bmp = modules["is_bmp"];
-			is_ds = modules["is_ds"];
-			is_wifi = modules["is_wifi"];
-			is_serial = modules["is_serial"];
-			is_insw = modules["is_insw"];
-
-			JsonObject& timers = config["timers"];
-			shift_mqtt = timers["shift_mqtt"];
-			shift_dht = timers["shift_dht"];
-			shift_bmp = timers["shift_bmp"];
-			shift_ds = timers["shift_ds"];
-			shift_wifi = timers["shift_wifi"];
-			shift_collector = timers["shift_collector"];
-			shift_receiver = timers["shift_receiver"];
-
-			interval_mqtt = timers["interval_mqtt"];
-			interval_dht = timers["interval_dht"];
-			interval_bmp = timers["interval_bmp"];
-			interval_ds = timers["interval_ds"];
-			interval_wifi = timers["interval_wifi"];
-			interval_listener = timers["interval_listener"];
-			interval_collector = timers["interval_collector"];
-			interval_receiver = timers["interval_receiver"];
-			debounce_time = timers["debounce_time"];
-
-			delete[] jsonString;
+			load(jsonString);
+			//delete[] jsonString;
 		}
 	}
-/*
-	void load_debug() {
-		DEBUG4_PRINTLN("*** LoadDebug.started ***");
-		DynamicJsonBuffer jsonBuffer;
-		if (exist())
-		{
-			int size = fileGetSize(APP_SETTINGS_FILE);
-			char* jsonString = new char[size + 1];
-			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
-			JsonObject& root = jsonBuffer.parseObject(jsonString);
-
-			JsonObject& config = root["config"];
-			serial_speed = config["serial_speed"];
-			version = config["version"].toString();
 
 
-			JsonObject& pins = config["pins"];
-
-
-			if (pins.containsKey("sw")) {
-				DEBUG4_PRINTLN("* SW *");
-
-				JsonObject& jSw = pins["sw"];
-				this->sw_cnt = (byte)jSw["cnt"];
-				DEBUG4_PRINTF("sw_cnt=%d; ", sw_cnt);
-
-				sw = new byte[sw_cnt];
-				for (byte i = 0; i < sw_cnt; i++ ) {
-
-					if (jSw.containsKey(String(i+1).c_str())) {
-						this->sw[i] = jSw[String(i+1)];
-						DEBUG4_PRINTF2("sw[%d]=%d; ", i, sw[i]);
-					}
-				}
-				DEBUG4_PRINTLN();
-			}
-
-			if (pins.containsKey("led")) {
-				JsonObject& jLed = pins["led"];
-				this->led.setCount((byte)jLed["cnt"]);
-				this->led.setPin((byte)jLed["pin"]);
-			}
-
-			if (pins.containsKey("in")) {
-				DEBUG4_PRINTLN("* IN *");
-				JsonObject& jIn = pins["in"];
-				this->in_cnt = (byte)jIn["cnt"];
-				DEBUG4_PRINTF("in_cnt=%d; ", in_cnt);
-				if (in_cnt > 0) {
-					in = new byte[in_cnt];
-					for (byte i = 0; i < in_cnt; i++ ) {
-						if (jIn.containsKey(String(i+1).c_str())) {
-							this->in[i] = jIn[String(i+1)];
-							DEBUG4_PRINTF2("in[%d]=%d; ", i, in[i]);
-						}
-					}
-				}
-				DEBUG4_PRINTLN();
-			}
-
-
-			delete[] jsonString;
+	void deleteConf() {
+		if (exist()) {
+			fileDelete(APP_SETTINGS_FILE);
+			//DEBUG1_PRINT(APP_SETTINGS_FILE );
+			//DEBUG1_PRINTLN(" successful deleted!");
+		}
+		else {
+			//DEBUG1_PRINT(APP_SETTINGS_FILE );
+			//DEBUG1_PRINTLN(" wasn't found. Didn't deleted!");
 		}
 	}
-*/
+
+	//timer.initializeMs(timer_shift, TimerDelegate(&MQTT::start, this)).startOnce();
+
+	uint8_t urlIndexChange() {
+		urlIndex++;
+		uint8_t urlMax = sizeof(urlFW)/ sizeof(urlFW[0]);
+		if (urlIndex > (urlMax - 1))
+			urlIndex = 0;
+
+		return urlIndex;
+
+	}
+
+	void onComplete(HttpClient& client, bool successful)
+	{
+		if (successful) {
+			//DEBUG1_PRINTLN("HttpLoad: Success sent");
+		}
+		else {
+			//DEBUG1_PRINTLN("HttpLoad: Failed");
+			urlIndexChange();
+			timerHttp.initializeMs(HTTP_TRY_PERIOD, TimerDelegate(&ApplicationSettingsStorage::downloadSettings, this)).startOnce();
+		}
+
+		String response = client.getResponseString();
+		//DEBUG4_PRINTLN("Server response: '" + response + "'");
+		if (response.length() > 0) {
+			fileSetContent(APP_SETTINGS_FILE, response);
+			//DEBUG1_PRINTLN("Settings.conf downloaded and saved!");
+			int size = response.length();
+			//char* jsonString = new char[size + 1];
+			char* jsonString = const_cast<char*>(response.c_str()); //!!! Check this
+			load(jsonString);
+		}
+	}
+
+	void downloadSettings() {
+		httpClient.downloadString(urlFW[urlIndex], HttpClientCompletedDelegate(&ApplicationSettingsStorage::onComplete, this));
+	}
+
+	void loadHttp() {
+		if (httpClient.isProcessing()) {
+			//DEBUG4_PRINTLN("We need to wait while request processing was completed");
+			return; // We need to wait while request processing was completed
+		}
+
+		timerHttp.initializeMs(HTTP_TRY_PERIOD, TimerDelegate(&ApplicationSettingsStorage::downloadSettings, this)).startOnce();
+
+	}
+
 	void saveLastWifi() {
 
 		DEBUG1_PRINT("*SLWF");
@@ -428,7 +514,8 @@ struct ApplicationSettingsStorage
 
 			DEBUG4_PRINTLN("root.toJsonString");
 
-			String appSettings = root.toJsonString();
+			String appSettings;
+			root.printTo(appSettings);
 			PRINT_MEM();
 			DEBUG4_PRINTLN(appSettings);
 			PRINT_MEM();
@@ -443,138 +530,196 @@ struct ApplicationSettingsStorage
 
 	void save() {
 		DynamicJsonBuffer jsonBuffer;
-		if (exist()) {
+		char* jsonString;
+		bool isExist = exist();
+		if (isExist) {
 			int size = fileGetSize(APP_SETTINGS_FILE);
-			char* jsonString = new char[size + 1];
+			jsonString = new char[size + 1];
 			fileGetContent(APP_SETTINGS_FILE, jsonString, size + 1);
-			JsonObject& root = jsonBuffer.parseObject(jsonString);
+		}
 
-			JsonObject& config = root["config"];
-			JsonObject& networks = config["networks"];
-			JsonObject& list = networks["list"];
+		JsonObject& root = (isExist?jsonBuffer.parseObject(jsonString):jsonBuffer.createObject());
 
-			config["serial_speed"] = serial_speed;
-			config["version"] = version.c_str();
+		JsonObject& config = (isExist?root["config"]:jsonBuffer.createObject());
+		JsonObject& networks = (isExist?config["networks"]:jsonBuffer.createObject());
+		JsonObject& list = (isExist?networks["list"]:jsonBuffer.createObject());
 
-			int8_t num = -1;
-			for (int i=0; i < wifi_cnt; i++) {
-				if (ssid.equalsIgnoreCase(this->wifiList[i]))
-					num = i+1;
-			}
+		config["serial_speed"] = serial_speed;
+		config["version"] = version.c_str();
 
-			// Check: Is there same ssid in configuration
-			if (num <= 0) {
-				wifi_cnt++;
-				list.addCopy(String(wifi_cnt), ssid.c_str());
-				JsonObject& network = jsonBuffer.createObject();
-				network.addCopy("ssid", ssid);
-				network.addCopy("password", password);
-				network["dhcp"] = dhcp;
-				network.addCopy("ip", ip.toString());
-				network.addCopy("netmask", netmask.toString());
-				network.addCopy("gateway", gateway.toString());
+		int8_t num = -1;
+		for (int i=0; i < wifi_cnt; i++) {
+			if (ssid.equalsIgnoreCase(this->wifiList[i]))
+				num = i+1;
+		}
 
-				JsonObject& ota = jsonBuffer.createObject();
-				ota["rom0"] = rom0.c_str();
-				ota["rom1"] = rom1.c_str();
-				ota["spiffs"] = spiffs.c_str();
+		// Check: Is there same ssid in configuration
+		if (num <= 0) {
+			wifi_cnt++;
+			list[String(wifi_cnt)] = ssid.c_str();
+			JsonObject& network = jsonBuffer.createObject();
+			network["ssid"] = ssid;
+			network["password"] = password;
+			network["dhcp"] = dhcp;
+			network["ip"] = ip.toString();
+			network["netmask"] = netmask.toString();
+			network["gateway"] = gateway.toString();
 
-				JsonObject& mqtt = jsonBuffer.createObject();
-				mqtt["broker_ip"] = broker_ip.toString().c_str();
-				mqtt["broker_port"] = broker_port;
+			JsonObject& ota = jsonBuffer.createObject();
+			ota["rom0"] = rom0.c_str();
+			//ota["rom1"] = rom1.c_str();
+			ota["spiffs"] = spiffs.c_str();
 
-				network["ota"] = ota;
-				network["mqtt"] = mqtt;
-				networks[ssid] = network;
+			JsonObject& mqtt = jsonBuffer.createObject();
+			mqtt["broker_ip"] = broker_ip.c_str();
+			mqtt["broker_port"] = broker_port;
 
-			}
-			else {
-				JsonObject& network = networks[ssid];
-				network["ssid"] = ssid.c_str();
-				network["password"] = password.c_str();
-				network["dhcp"] = dhcp;
-				network.addCopy("ip", ip.toString());
-				network.addCopy("netmask", netmask.toString());
-				network.addCopy("gateway", gateway.toString());
-
-				JsonObject& ota = network["ota"];
-				ota["rom0"] = rom0.c_str();
-				ota["rom1"] = rom1.c_str();
-				ota["spiffs"] = spiffs.c_str();
-
-				JsonObject& mqtt = network["mqtt"];
-				mqtt["broker_ip"] = broker_ip.toString().c_str();
-				mqtt["broker_port"] = broker_port;
-			}
-
-			JsonObject& mqtt = config["mqtt_topic"];
-			mqtt["main_topic"] = main_topic.c_str();
-			mqtt["client_topic"] = client_topic.c_str();
-
-			JsonObject& pins = config["pins"];
-			pins["sda"] = sda;
-			pins["scl"] = scl;
-			pins["dht"] = dht;
-			pins["ds"] = ds;
-
-			JsonObject& jSw = pins["sw"];
-			jSw["cnt"] = this->sw_cnt;
-			for (byte i = 0; i < sw_cnt; i++)
-				jSw[String(i+1)] = sw[i];
-
-			JsonObject& jSsw = pins["ssw"];
-			jSsw["cnt"] = this->ssw_cnt;
-			for (byte i = 0; i < ssw_cnt; i++)
-				jSsw[String(i+1)] = ssw[i];
-
-			JsonObject& jIn = pins["in"];
-			jIn["cnt"] = this->in_cnt;
-			for (byte i = 0; i < in_cnt; i++)
-				jIn[String(i+1)] = in[i];
-
-			JsonObject& jLed = pins["led"];
-			jLed["cnt"] = this->led.getCount();
-			jLed["pin"] = this->led.getPin();
-
-			JsonObject& modules = config["modules"];
-			modules["is_dht"] = is_dht;
-			modules["is_bmp"] = is_bmp;
-			modules["is_ds"] = is_ds;
-			modules["is_wifi"] = is_wifi;
-			modules["is_serial"] = is_serial;
-			modules["is_insw"] = is_insw;
-
-			JsonObject& timers = config["timers"];
-			timers["shift_mqtt"] = shift_mqtt;
-			timers["shift_dht"] = shift_dht;
-			timers["shift_bmp"] = shift_bmp;
-			timers["shift_ds"] = shift_ds;
-			timers["shift_wifi"] = shift_wifi;
-			timers["shift_collector"] = shift_collector;
-			timers["shift_receiver"] = shift_receiver;
-
-			timers["interval_mqtt"] = interval_mqtt;
-			timers["interval_dht"] = interval_dht;
-			timers["interval_bmp"] = interval_bmp;
-			timers["interval_ds"] = interval_ds;
-			timers["interval_wifi"] = interval_wifi;
-			timers["interval_listener"] = interval_listener;
-			timers["interval_collector"] = interval_collector;
-			timers["interval_receiver"] = interval_receiver;
-			timers["debounce_time"] = debounce_time;
-
-			fileSetContent(APP_SETTINGS_FILE, root.toJsonString());
-			DEBUG4_PRINTLN(root.toJsonString());
-			INFO_PRINTLN("Settings file was saved");
-
-			delete[] jsonString;
+			network["ota"] = ota;
+			network["mqtt"] = mqtt;
+			networks[ssid] = network;
+			networks["list"] = list;
 
 		}
 		else {
-			save_new();
+			JsonObject& network = (isExist?networks[ssid]:jsonBuffer.createObject());
+			network["ssid"] = ssid.c_str();
+			network["password"] = password.c_str();
+			network["dhcp"] = dhcp;
+			//network.addCopy("ip", ip.toString());
+			//network.addCopy("netmask", netmask.toString());
+			//network.addCopy("gateway", gateway.toString());
+
+			JsonObject& ota = (isExist?network["ota"]:jsonBuffer.createObject());
+			ota["rom0"] = rom0.c_str();
+			//ota["rom1"] = rom1.c_str();
+			ota["spiffs"] = spiffs.c_str();
+
+			JsonObject& mqtt = (isExist?network["mqtt"]:jsonBuffer.createObject());
+			mqtt["broker_ip"] = broker_ip.c_str();
+			mqtt["broker_port"] = broker_port;
+
+			if (isExist) {
+				network["ota"] = ota;
+				network["mqtt"] = mqtt;
+				networks[ssid] = network;
+				networks["list"] = list;
+			}
 		}
+
+		JsonObject& mqtt_topic = (isExist?config["mqtt_topic"]:jsonBuffer.createObject());
+		mqtt_topic["main_topic"] = main_topic.c_str();
+		mqtt_topic["client_topic"] = client_topic.c_str();
+
+		mqtt_topic["config"] = topConfig.c_str();
+		mqtt_topic["log"] = topLog.c_str();
+		mqtt_topic["start"] = topStart.c_str();
+		mqtt_topic["vcc"] = topVCC.c_str();
+
+		mqtt_topic["dht_t"] = topDHT_t.c_str();
+		mqtt_topic["dht_h"] = topDHT_h.c_str();
+
+		mqtt_topic["bmp_t"] = topBMP_t.c_str();
+		mqtt_topic["bmp_p"] = topBMP_p.c_str();
+
+		mqtt_topic["ds_t"] = topDS_t.c_str();
+
+		mqtt_topic["sw"] = topSW.c_str();
+		mqtt_topic["ssw"] = topSSW.c_str();
+
+		mqtt_topic["msw"] = topMSW.c_str();
+		mqtt_topic["min"] = topMIN.c_str();
+		mqtt_topic["min_l"] = topMIN_L.c_str();
+
+		mqtt_topic["water_h"] = topWater_h.c_str();
+		mqtt_topic["water_c"] = topWater_c.c_str();
+
+
+		JsonObject& pins = (isExist?config["pins"]:jsonBuffer.createObject());
+		pins["sda"] = sda;
+		pins["scl"] = scl;
+		pins["dht"] = dht;
+		pins["ds"] = ds;
+		pins["mint"] = m_int;
+
+		JsonObject& jSw = (isExist?pins["sw"]:jsonBuffer.createObject());
+		jSw["cnt"] = this->sw_cnt;
+		for (byte i = 0; i < sw_cnt; i++)
+			jSw[String(i+1)] = sw[i];
+
+		JsonObject& jSsw = (isExist?pins["ssw"]:jsonBuffer.createObject());
+		jSsw["cnt"] = this->ssw_cnt;
+		for (byte i = 0; i < ssw_cnt; i++)
+			jSsw[String(i+1)] = ssw[i];
+
+		JsonObject& jIn = (isExist?pins["in"]:jsonBuffer.createObject());
+		jIn["cnt"] = this->in_cnt;
+		for (byte i = 0; i < in_cnt; i++)
+			jIn[String(i+1)] = in[i];
+
+		JsonObject& jLed = (isExist?pins["led"]:jsonBuffer.createObject());
+		jLed["cnt"] = this->led.getCount();
+		jLed["pin"] = this->led.getPin();
+
+		JsonObject& modules = (isExist?config["modules"]:jsonBuffer.createObject());
+		modules["is_dht"] = is_dht;
+		modules["is_bmp"] = is_bmp;
+		modules["is_ds"] = is_ds;
+		modules["is_wifi"] = is_wifi;
+		modules["is_serial"] = is_serial;
+		modules["is_insw"] = is_insw;
+		modules["is_mcp"] = is_mcp;
+
+		JsonObject& timers = (isExist?config["timers"]:jsonBuffer.createObject());
+		timers["shift_mqtt"] = shift_mqtt;
+		timers["shift_dht"] = shift_dht;
+		timers["shift_bmp"] = shift_bmp;
+		timers["shift_ds"] = shift_ds;
+		timers["shift_wifi"] = shift_wifi;
+		timers["shift_collector"] = shift_collector;
+		timers["shift_receiver"] = shift_receiver;
+		timers["shift_mcp"] = shift_mcp;
+
+		timers["interval_mqtt"] = interval_mqtt;
+		timers["interval_dht"] = interval_dht;
+		timers["interval_bmp"] = interval_bmp;
+		timers["interval_ds"] = interval_ds;
+		timers["interval_wifi"] = interval_wifi;
+		timers["interval_listener"] = interval_listener;
+		timers["interval_collector"] = interval_collector;
+		timers["interval_receiver"] = interval_receiver;
+		timers["interval_mcp"] = interval_mcp;
+
+		timers["debounce_time"] = debounce_time;
+		timers["long_time"] = long_time;
+
+		if (isExist) {
+			root["config"] = config;
+
+			pins["sw"] = jSw;
+			pins["ssw"] = jSsw;
+			pins["led"] = jLed;
+			pins["in"] = jIn;
+
+			config["networks"] = networks;
+			config["modules"] = modules;
+			config["mqtt-topic"] = mqtt_topic;
+			config["pins"] = pins;
+			config["timers"] = timers;
+
+
+
+		}
+		String str;
+		root.printTo(str);
+		fileSetContent(APP_SETTINGS_FILE, str);
+		DEBUG4_PRINTLN(root.toJsonString());
+		INFO_PRINTLN("Settings file was saved");
+
+		delete[] jsonString;
+
 	}
 
+	/*
 	void save_new() {
 
 		DynamicJsonBuffer jsonBuffer;
@@ -590,11 +735,11 @@ struct ApplicationSettingsStorage
 		JsonObject& network = jsonBuffer.createObject();
 		network["ssid"] = ssid.c_str();
 		network["password"] = password.c_str();
-		network["dhcp"] = dhcp;
+		//network["dhcp"] = dhcp;
 		// Make copy by value for temporary string objects
-		network.addCopy("ip", ip.toString());
-		network.addCopy("netmask", netmask.toString());
-		network.addCopy("gateway", gateway.toString());
+		//network.addCopy("ip", ip.toString());
+		//network.addCopy("netmask", netmask.toString());
+		//network.addCopy("gateway", gateway.toString());
 
 		JsonObject& list = jsonBuffer.createObject();
 		list["1"] = ssid.c_str();
@@ -603,11 +748,11 @@ struct ApplicationSettingsStorage
 
 		JsonObject& ota = jsonBuffer.createObject();
 		ota["rom0"] = rom0.c_str();
-		ota["rom1"] = rom1.c_str();
+		//ota["rom1"] = rom1.c_str();
 		ota["spiffs"] = spiffs.c_str();
 
 		JsonObject& mqtt = jsonBuffer.createObject();
-		mqtt["broker_ip"] = broker_ip.toString().c_str();
+		mqtt["broker_ip"] = broker_ip.c_str();
 		mqtt["broker_port"] = broker_port;
 
 		network["ota"] = ota;
@@ -618,13 +763,35 @@ struct ApplicationSettingsStorage
 		JsonObject& mqtt_topic = jsonBuffer.createObject();
 		mqtt["main_topic"] = main_topic.c_str();
 		mqtt["client_topic"] = client_topic.c_str();
+		mqtt["config"] = topConfig.c_str();
+		mqtt["log"] = topLog.c_str();
+		mqtt["start"] = topStart.c_str();
+		mqtt["vcc"] = topVCC.c_str();
 
+		mqtt["dht_t"] = topDHT_t.c_str();
+		mqtt["dht_h"] = topDHT_h.c_str();
+
+		mqtt["bmp_t"] = topBMP_t.c_str();
+		mqtt["bmp_p"] = topBMP_p.c_str();
+
+		mqtt["ds_t"] = topDS_t.c_str();
+
+		mqtt["sw"] = topSW.c_str();
+		mqtt["ssw"] = topSSW.c_str();
+
+		mqtt["msw"] = topMSW.c_str();
+		mqtt["min"] = topMIN.c_str();
+		mqtt["min_l"] = topMIN_L.c_str();
+
+		mqtt["water_h"] = topWater_h.c_str();
+		mqtt["water_c"] = topWater_c.c_str();
 
 		JsonObject& pins = jsonBuffer.createObject();
 		pins["sda"] = sda;
 		pins["scl"] = scl;
 		pins["dht"] = dht;
 		pins["ds"] = ds;
+		pins["mint"] = m_int;
 
 		JsonObject& jSw = jsonBuffer.createObject();
 		jSw["cnt"] = this->sw_cnt;
@@ -646,7 +813,7 @@ struct ApplicationSettingsStorage
 		jLed["pin"] = this->led.getPin();
 
 		pins["sw"] = jSw;
-		pins["sw"] = jSsw;
+		pins["ssw"] = jSsw;
 		pins["led"] = jLed;
 		pins["in"] = jIn;
 
@@ -657,6 +824,7 @@ struct ApplicationSettingsStorage
 		modules["is_wifi"] = is_wifi;
 		modules["is_serial"] = is_serial;
 		modules["is_insw"] = is_insw;
+		modules["is_mcp"] = is_mcp;
 
 		JsonObject& timers = jsonBuffer.createObject();
 		timers["shift_mqtt"] = shift_mqtt;
@@ -666,6 +834,7 @@ struct ApplicationSettingsStorage
 		timers["shift_wifi"] = shift_wifi;
 		timers["shift_collector"] = shift_collector;
 		timers["shift_receiver"] = shift_receiver;
+		timers["shift_mcp"] = shift_mcp;
 
 		timers["interval_mqtt"] = interval_mqtt;
 		timers["interval_dht"] = interval_dht;
@@ -675,7 +844,10 @@ struct ApplicationSettingsStorage
 		timers["interval_listener"] = interval_listener;
 		timers["interval_collector"] = interval_collector;
 		timers["interval_receiver"] = interval_receiver;
+		timers["interval_mcp"] = interval_mcp;
+
 		timers["debounce_time"] = debounce_time;
+		timers["long_time"] = long_time;
 
 		config["networks"] = networks;
 		config["modules"] = modules;
@@ -687,8 +859,14 @@ struct ApplicationSettingsStorage
 		DEBUG4_PRINTLN(root.toJsonString());
 		DEBUG4_PRINTLN("Settings file was saved");
 	}
+	 */
 
-	bool exist() { return fileExist(APP_SETTINGS_FILE); }
+	bool exist() {
+		if (fileExist(APP_SETTINGS_FILE))
+			return (fileGetSize(APP_SETTINGS_FILE)>100);
+
+		return false;
+	}
 
 	void rBootInit() {
 		// mount spiffs
@@ -717,7 +895,7 @@ struct ApplicationSettingsStorage
 
 	/*
 	 * WRONG. Before use NEEDS to be changed to new format (several wifi networks) application settings file
-	 */
+
 	String update(JsonObject& root) {
 
 		String result;
@@ -876,6 +1054,10 @@ struct ApplicationSettingsStorage
 					this->is_insw = modules["is_insw"];
 					result += "is_insw, ";
 				}
+				if (modules.containsKey("is_mcp")) {
+					this->is_mcp = modules["is_mcp"];
+					result += "is_mcp, ";
+				}
 			}
 
 			if (config.containsKey("timers")) {
@@ -945,6 +1127,10 @@ struct ApplicationSettingsStorage
 					this->debounce_time = timers["debounce_time"];
 					result += "debounce_time, ";
 				}
+				if (timers.containsKey("long_time")) {
+					this->long_time = timers["long_time"];
+					result += "long_time, ";
+				}
 			}
 
 		}
@@ -964,6 +1150,7 @@ struct ApplicationSettingsStorage
 		this->update(root);
 		this->save();
 	}
+	 */
 
 	bool check() {
 		//TODO: need to be coded check for mandatory fields

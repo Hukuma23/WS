@@ -24,7 +24,7 @@ private:
 	byte cnt;
 	char* led; // !!!-- GRB will be used instead of RGB --!!!
 
-	void setColor(byte num, char* color);
+	bool setColor(byte num, char* color);
 
 public:
 	LED();
@@ -47,6 +47,9 @@ public:
 	void blue(byte num);
 	void black(byte num);
 	void white(byte num);
+
+	void showOn(byte num);
+	void showOff(byte num);
 
 	void print();
 

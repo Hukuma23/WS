@@ -1,8 +1,9 @@
-// Copyright Benoit Blanchon 2014-2015
+// Copyright Benoit Blanchon 2014-2016
 // MIT License
 //
 // Arduino JSON library
 // https://github.com/bblanchon/ArduinoJson
+// If you like this project, please add a star!
 
 #include "../../include/ArduinoJson/Internals/Prettyfier.hpp"
 
@@ -33,7 +34,7 @@ inline size_t Prettyfier::handleMarkupChar(uint8_t c) {
       return handleBlockClose(c);
 
     case ':':
-      return handleColumn();
+      return handleColon();
 
     case ',':
       return handleComma();
@@ -54,7 +55,7 @@ inline size_t Prettyfier::handleBlockClose(uint8_t c) {
   return unindentIfNeeded() + _sink.write(c);
 }
 
-inline size_t Prettyfier::handleColumn() {
+inline size_t Prettyfier::handleColon() {
   return _sink.write(':') + _sink.write(' ');
 }
 

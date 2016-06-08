@@ -1,8 +1,9 @@
-// Copyright Benoit Blanchon 2014-2015
+// Copyright Benoit Blanchon 2014-2016
 // MIT License
 //
 // Arduino JSON library
 // https://github.com/bblanchon/ArduinoJson
+// If you like this project, please add a star!
 
 #pragma once
 
@@ -31,7 +32,7 @@ class Prettyfier : public Print {
 
   size_t handleBlockClose(uint8_t);
   size_t handleBlockOpen(uint8_t);
-  size_t handleColumn();
+  size_t handleColon();
   size_t handleComma();
   size_t handleQuoteOpen();
   size_t handleNormalChar(uint8_t);

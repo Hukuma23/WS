@@ -15,7 +15,7 @@
 
 #define WAIT_BEFORE_REPEAT 20
 
-typedef Delegate<void() > processionDelegate;
+typedef Delegate<void() > ProcessionDelegate;
 
 struct SerialMessage {
     uint8_t cmd;
@@ -66,15 +66,18 @@ public:
 
     void flagListening(bool listening);
     bool flagListening();
+
     void startListening();
     void stopListening();
-    void listener();
+    //void stopListening();
+
     void clearPayload();
 
-    void setTimerListener(Timer* timer);
+    void startListener(unsigned long interval_listener);
     void setSerial(HardwareSerial*);
-    void setProcessing(processionDelegate processMethod);
-    void setBlink(processionDelegate blink);
+    void setProcessing(ProcessionDelegate processMethod);
+    void setBlink(ProcessionDelegate blink);
+
 
     uint8_t getPayloadCmd();
     uint8_t getPayloadObjType();
@@ -89,15 +92,16 @@ protected:
 
 
 private:
+    void listener();
     SerialMessage oPayload,oLastPayload;
     HardwareSerial *serial;
     uint8_t* lastPayload;
     uint8_t receiveState;
-    processionDelegate processMessage;
-    processionDelegate blink;
+    ProcessionDelegate processMessage;
+    ProcessionDelegate blink;
 
     bool isListen = false;
-    Timer* timerListener;
+    Timer timerListener;
 
     void setLastPayload();
     void getLastPayload();

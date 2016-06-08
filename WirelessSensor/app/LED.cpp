@@ -53,11 +53,15 @@ byte LED::getBright() {
 	return bright;
 }
 
-void LED::setColor(byte num, char* color) {
+bool LED::setColor(byte num, char* color) {
+	if (num >= cnt)
+		return false;
+
 	byte nn = num * 3;
 	for (byte i=0; i < 3; i++) {
 		led[nn+i] = color[i];
 	}
+	return true;
 }
 
 void LED::show() {
@@ -109,4 +113,10 @@ void LED::print() {
 	}
 }
 
+void LED::showOn(byte num) {
+	green(num);
+}
 
+void LED::showOff(byte num) {
+	red(num);
+}

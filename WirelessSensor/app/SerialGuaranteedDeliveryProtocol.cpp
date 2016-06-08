@@ -30,9 +30,9 @@ SerialGuaranteedDeliveryProtocol::SerialGuaranteedDeliveryProtocol(HardwareSeria
     setSerial(serial);
 }
 
-void SerialGuaranteedDeliveryProtocol::setTimerListener(Timer* timer) {
-    timerListener = timer;
-    (*timerListener).start();
+void SerialGuaranteedDeliveryProtocol::startListener(unsigned long interval_listener) {
+	timerListener.initializeMs(interval_listener, TimerDelegate(&SerialGuaranteedDeliveryProtocol::listener, this));
+	timerListener.start();
 }
 
 void SerialGuaranteedDeliveryProtocol::setSerial(HardwareSerial* serial) {
@@ -88,6 +88,7 @@ uint8_t SerialGuaranteedDeliveryProtocol::sendSerialMessage(uint8_t cmd, uint8_t
     if (isListen)
         return -1;
 
+    //stopListening();
     stopListening();
 
     receiveState = receive();
@@ -148,7 +149,7 @@ void SerialGuaranteedDeliveryProtocol::processSerialMessage() {
         processMessage();
 }
 
-void SerialGuaranteedDeliveryProtocol::setProcessing(processionDelegate processMethod) {
+void SerialGuaranteedDeliveryProtocol::setProcessing(ProcessionDelegate processMethod) {
 
     if (processMessage) {
         SYSTEM_ERROR("WRONG CALL waitConnection method..");
@@ -171,13 +172,15 @@ void SerialGuaranteedDeliveryProtocol::listener() {
     isListen = false;
 }
 
-void SerialGuaranteedDeliveryProtocol::startListening() {
-    (*timerListener).start();
-}
 
-void SerialGuaranteedDeliveryProtocol::stopListening() {
-    (*timerListener).stop();
+void SerialGuaranteedDeliveryProtocol::startListening() {
+    timerListener.start();
 }
+/*
+void SerialGuaranteedDeliveryProtocol::stopListening() {
+    timerListener.stop();
+}*/
+
 
 uint8_t SerialGuaranteedDeliveryProtocol::getPayloadCmd() {
     return oPayload.cmd;
@@ -244,10 +247,14 @@ bool SerialGuaranteedDeliveryProtocol::flagListening() {
     return isListen;
 }
 
-void SerialGuaranteedDeliveryProtocol::setBlink(processionDelegate blink) {
+void SerialGuaranteedDeliveryProtocol::setBlink(ProcessionDelegate blink) {
     this->blink = blink;
 }
 
 uint8_t SerialGuaranteedDeliveryProtocol::getPayloadSize() {
     return payloadSize;
+}
+
+void SerialGuaranteedDeliveryProtocol::stopListening() {
+	timerListener.stop();
 }

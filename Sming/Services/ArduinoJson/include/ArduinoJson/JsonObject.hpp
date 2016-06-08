@@ -1,16 +1,22 @@
-// Copyright Benoit Blanchon 2014-2015
+// Copyright Benoit Blanchon 2014-2016
 // MIT License
 //
 // Arduino JSON library
 // https://github.com/bblanchon/ArduinoJson
+// If you like this project, please add a star!
 
 #pragma once
 
+#include "Arduino/String.hpp"
 #include "Internals/JsonBufferAllocated.hpp"
 #include "Internals/JsonPrintable.hpp"
 #include "Internals/List.hpp"
 #include "Internals/ReferenceType.hpp"
 #include "JsonPair.hpp"
+#include "TypeTraits/EnableIf.hpp"
+#include "TypeTraits/IsFloatingPoint.hpp"
+#include "TypeTraits/IsReference.hpp"
+#include "TypeTraits/IsSame.hpp"
 
 // Returns the size (in bytes) of an object with n elements.
 // Can be very handy to determine the size of a StaticJsonBuffer.
@@ -33,99 +39,115 @@ class JsonObject : public Internals::JsonPrintable<JsonObject>,
                    public Internals::ReferenceType,
                    public Internals::List<JsonPair>,
                    public Internals::JsonBufferAllocated {
-  // JsonBuffer is a friend because it needs to call the private constructor.
-  friend class JsonBuffer;
-
  public:
-  typedef const char *key_type;
-  typedef JsonPair value_type;
-
-  // Gets the JsonVariant associated with the specified key.
-  // Returns a reference or JsonVariant::invalid() if not found.
-  JsonVariant &at(key_type key);
-
-  // Gets the JsonVariant associated with the specified key.
-  // Returns a constant reference or JsonVariant::invalid() if not found.
-  const JsonVariant &at(key_type key) const;
-
-  // Gets or create the JsonVariant associated with the specified key.
-  // Returns a reference or JsonVariant::invalid() if allocation failed.
-  JsonVariant &operator[](key_type key);
-  JsonVariant &operator[](const String& key);
-
-  // Gets the JsonVariant associated with the specified key.
-  // Returns a constant reference or JsonVariant::invalid() if not found.
-  const JsonVariant &operator[](key_type key) const { return at(key); }
-
-  // Adds an uninitialized JsonVariant associated with the specified key.
-  // Return a reference or JsonVariant::invalid() if allocation fails.
-  JsonVariant &add(key_type key) { return (*this)[key]; }
-  JsonVariant &add(const String& key);
-
-  // Adds the specified key with the specified value.
+  // A meta-function that returns true if type T can be used in
+  // JsonObject::set()
   template <typename T>
-  void add(key_type key, T value) {
-    add(key).set(value);
-  }
+  struct CanSet {
+    static const bool value = JsonVariant::IsConstructibleFrom<T>::value ||
+                              TypeTraits::IsSame<T, String&>::value ||
+                              TypeTraits::IsSame<T, const String&>::value;
+  };
+
+  // Create an empty JsonArray attached to the specified JsonBuffer.
+  // You should not use this constructor directly.
+  // Instead, use JsonBuffer::createObject() or JsonBuffer.parseObject().
+  FORCE_INLINE explicit JsonObject(JsonBuffer* buffer)
+      : Internals::List<JsonPair>(buffer) {}
+
+  // Gets or sets the value associated with the specified key.
+  FORCE_INLINE JsonObjectSubscript<const char*> operator[](const char* key);
+  FORCE_INLINE JsonObjectSubscript<const String&> operator[](const String& key);
+
+  // Gets the value associated with the specified key.
+  FORCE_INLINE JsonVariant operator[](JsonObjectKey key) const;
+
+  // Sets the specified key with the specified value.
+  // bool set(TKey key, bool value);
+  // bool set(TKey key, char value);
+  // bool set(TKey key, long value);
+  // bool set(TKey key, int value);
+  // bool set(TKey key, short value);
+  // bool set(TKey key, float value);
+  // bool set(TKey key, double value);
+  // bool set(TKey key, const char* value);
   template <typename T>
-  void add(const String& key, T value) {
-    add(key).set(value);
+  FORCE_INLINE bool set(
+      JsonObjectKey key, T value,
+      typename TypeTraits::EnableIf<
+          CanSet<T>::value && !TypeTraits::IsReference<T>::value>::type* = 0) {
+    return setNodeAt<T>(key, value);
+  }
+  // bool set(Key, String&);
+  // bool set(Key, JsonArray&);
+  // bool set(Key, JsonObject&);
+  // bool set(Key, JsonVariant&);
+  template <typename T>
+  FORCE_INLINE bool set(
+      JsonObjectKey key, const T& value,
+      typename TypeTraits::EnableIf<CanSet<T&>::value>::type* = 0) {
+    return setNodeAt<T&>(key, const_cast<T&>(value));
+  }
+  // bool set(Key, float value, uint8_t decimals);
+  // bool set(Key, double value, uint8_t decimals);
+  template <typename TValue>
+  FORCE_INLINE bool set(
+      JsonObjectKey key, TValue value, uint8_t decimals,
+      typename TypeTraits::EnableIf<
+          TypeTraits::IsFloatingPoint<TValue>::value>::type* = 0) {
+    return setNodeAt<const JsonVariant&>(key, JsonVariant(value, decimals));
   }
 
-  // Adds the specified key with a reference to the specified JsonArray.
-  void add(key_type key, JsonArray &array) { add(key).set(array); }
-  void add(const String& stringKey, JsonArray &array) { add(stringKey).set(array); }
+  // Gets the value associated with the specified key.
+  FORCE_INLINE JsonVariant get(JsonObjectKey) const;
 
-  // Adds the specified key with a reference to the specified JsonObject.
-  void add(key_type key, JsonObject &object) { add(key).set(object); }
-  void add(const String& stringKey, JsonObject &object) { add(stringKey).set(object); }
+  // Gets the value associated with the specified key.
+  template <typename T>
+  FORCE_INLINE T get(JsonObjectKey) const;
 
-  // Add item by value: create copy of string (in JSON buffer memory) and add it to object childs
-  // memory will be freed automatically
-  void addCopy(key_type stringKey, const String &stringVal);
-  void addCopy(const String& stringKey, const String &stringVal);
+  // Checks the type of the value associated with the specified key.
+  template <typename T>
+  FORCE_INLINE bool is(JsonObjectKey) const;
 
   // Creates and adds a JsonArray.
   // This is a shortcut for JsonBuffer::createArray() and JsonObject::add().
-  JsonArray &createNestedArray(key_type key);
-  JsonArray &createNestedArray(const String& stringKey);
+  FORCE_INLINE JsonArray& createNestedArray(JsonObjectKey key);
 
   // Creates and adds a JsonObject.
   // This is a shortcut for JsonBuffer::createObject() and JsonObject::add().
-  JsonObject &createNestedObject(key_type key);
-  JsonObject &createNestedObject(const String& stringKey);
+  FORCE_INLINE JsonObject& createNestedObject(JsonObjectKey key);
 
   // Tells weither the specified key is present and associated with a value.
-  //bool containsKey(key_type key) const { return at(key).success(); }
-  bool containsKey(key_type key) { return at(key).success(); }
+  FORCE_INLINE bool containsKey(JsonObjectKey key) const;
 
   // Removes the specified key and the associated value.
-  void remove(key_type key);
+  void remove(JsonObjectKey key);
 
   // Returns a reference an invalid JsonObject.
   // This object is meant to replace a NULL pointer.
   // This is used when memory allocation or JSON parsing fail.
-  static JsonObject &invalid() { return _invalid; }
+  static JsonObject& invalid() { return _invalid; }
 
   // Serialize the object to the specified JsonWriter
-  void writeTo(Internals::JsonWriter &writer) const;
-
-  String toJsonString(bool prettyPrintStyle = true) const;
-
- protected:
-  // Don't use this methods. Convert value to "const char*" (if it will be available) or use "addCopy" instead
-  void add(key_type key, const String &stringVal) { add(key).set(stringVal); }
-  void add(const String& stringKey, const String &stringVal) { add(stringKey).set(stringVal); }
-
+  void writeTo(Internals::JsonWriter& writer) const;
 
  private:
-  // Create an empty JsonArray attached to the specified JsonBuffer.
-  explicit JsonObject(JsonBuffer *buffer) : Internals::List<JsonPair>(buffer) {}
-
   // Returns the list node that matches the specified key.
-  node_type *getNodeAt(key_type key) const;
+  node_type* getNodeAt(const char* key) const;
+
+  node_type* getOrCreateNodeAt(const char* key);
+
+  template <typename T>
+  FORCE_INLINE bool setNodeAt(JsonObjectKey key, T value);
+
+  FORCE_INLINE bool setNodeKey(node_type*, JsonObjectKey key);
+
+  template <typename T>
+  FORCE_INLINE bool setNodeValue(node_type*, T value);
 
   // The instance returned by JsonObject::invalid()
   static JsonObject _invalid;
 };
 }
+
+#include "JsonObject.ipp"
