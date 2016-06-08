@@ -1,10 +1,5 @@
 #include <user_config.h>
 #include <SmingCore/SmingCore.h>
-#include <Libraries/DHT/DHT.h>
-#include <Libraries/OneWire/OneWire.h>
-#include <Libraries/BMP180/BMP180.h>
-#include <HardwareSerial.h>
-#include <SerialGuaranteedDeliveryProtocol.h>
 #include <AppSettings.h>
 #include <ActStates.h>
 #include <Logger.h>
