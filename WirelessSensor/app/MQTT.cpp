@@ -82,10 +82,10 @@ byte MQTT::connect() {
 		MqttClient::subscribe(topicSubscr);
 	}
 	else if (!isConnected) {
+		isConnected = true;
 		publish("start", OUT, "1");
 		publish("log", OUT, nameClient);
 		DEBUG4_PRINTLN("published mqtt START!");
-		isConnected = true;
 	}
 
 	return state;
@@ -117,12 +117,6 @@ bool MQTT::publish(String topic, byte index, MessageDirection direction, String 
 
 	if (!isConnected)
 		return false;
-
-	DEBUG4_PRINTLN("mqtt.publish3 will send");
-
-	DEBUG4_PRINTLN("mqtt.p3: topic=\"" + topic +"\"");
-	DEBUG4_PRINTF("mqtt.p3: index=%d, ", index);
-	DEBUG4_PRINTLN("msg=\"" + message +"\"");
 
 	return MqttClient::publish(getTopic(topic, index, direction), message);
 }
