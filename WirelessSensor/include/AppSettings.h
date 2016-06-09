@@ -119,6 +119,7 @@ struct ApplicationSettingsStorage
 	unsigned long shift_collector = 3000;
 	unsigned long shift_receiver = 16000;
 	unsigned long shift_mcp = 12000;
+	unsigned long shift_save = 500;
 
 	unsigned long interval_mqtt = 30000;
 	unsigned long interval_dht = 60000;
@@ -394,6 +395,7 @@ struct ApplicationSettingsStorage
 		shift_collector = timers["shift_collector"];
 		shift_receiver = timers["shift_receiver"];
 		shift_mcp = timers["shift_mcp"];
+		shift_save = timers["shift_save"];
 
 		interval_mqtt = timers["interval_mqtt"];
 		interval_dht = timers["interval_dht"];
@@ -678,6 +680,7 @@ struct ApplicationSettingsStorage
 		timers["shift_collector"] = shift_collector;
 		timers["shift_receiver"] = shift_receiver;
 		timers["shift_mcp"] = shift_mcp;
+		timers["shift_save"] = shift_save;
 
 		timers["interval_mqtt"] = interval_mqtt;
 		timers["interval_dht"] = interval_dht;
@@ -835,6 +838,7 @@ struct ApplicationSettingsStorage
 		timers["shift_collector"] = shift_collector;
 		timers["shift_receiver"] = shift_receiver;
 		timers["shift_mcp"] = shift_mcp;
+		timers["shift_save"] = shift_save;
 
 		timers["interval_mqtt"] = interval_mqtt;
 		timers["interval_dht"] = interval_dht;

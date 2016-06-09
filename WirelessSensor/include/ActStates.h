@@ -26,6 +26,7 @@ struct ActualStateStorage {
 
 private:
 	//byte msw_cnt = CONST_MSW_CNT;
+	Timer saveTimer;
 
 public:
 	bool needInit = false;
@@ -147,14 +148,17 @@ public:
 			}
 
 
-			this->save();
+			this->save2file();
 			needInit = false;
 			DEBUG4_PRINTLN("ASt.5");
 		}
 	}
 
-	void save()
-	{
+	void save() {
+		saveTimer.initializeMs(AppSettings.shift_save, TimerDelegate(&ActualStateStorage::save2file, this)).startOnce();
+	}
+
+	void save2file() {
 		//StaticJsonBuffer<200> jsonBuffer;
 		DynamicJsonBuffer jsonBuffer;
 		JsonObject& root = jsonBuffer.createObject();
