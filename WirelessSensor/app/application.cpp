@@ -3,7 +3,6 @@
 #include <AppSettings.h>
 #include <ActStates.h>
 #include <Logger.h>
-#include <LED.h>
 #include <MQTT.h>
 #include <Module.h>
 #include <MCP.h>
