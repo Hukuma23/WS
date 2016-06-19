@@ -144,12 +144,7 @@ bool MCP::turnSw(byte num, bool state) {
 			else
 				mqtt->publish(AppSettings.topMIN, num+1, OUT, (state?"ON":"OFF"));
 */
-		if (state) {
-			AppSettings.led.showOn(num);
-		}
-		else {
-			AppSettings.led.showOff(num);
-		}
+
 	}
 	return state;
 }

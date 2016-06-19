@@ -116,6 +116,8 @@ public:
 				msw_cnt = AppSettings.msw_cnt;
 			}
 
+			initLED();
+
 			delete[] jsonString;
 		}
 		else {
@@ -147,6 +149,7 @@ public:
 					msw[i] = false;
 			}
 
+			initLED();
 
 			this->save2file();
 			needInit = false;
@@ -364,11 +367,37 @@ public:
 		if ((num >= 0) && (AppSettings.msw_cnt > num)) {
 			if (msw[num] != state) {
 				this->msw[num] = state;
+
+				if (state) {
+					AppSettings.led.showOn(num);
+				}
+				else {
+					AppSettings.led.showOff(num);
+				}
+
 				this->save();
 			}
 		}
 		else {
 			ERROR_PRINTF("ERROR: setMsw wrong number (%d) access. msw_cnt=%d", num, AppSettings.msw_cnt);
+		}
+	}
+
+	void initLED() {
+		if (AppSettings.msw_cnt > 0)
+			initLED(msw, AppSettings.msw_cnt);
+		else if (AppSettings.ssw_cnt > 0)
+			initLED(ssw, AppSettings.ssw_cnt);
+		else if (AppSettings.sw_cnt > 0)
+			initLED(sw, AppSettings.sw_cnt);
+	}
+
+	void initLED(bool* arr, byte cnt) {
+		for (byte i=0; i < cnt; i++) {
+			if (arr[i])
+				AppSettings.led.showOn(i);
+			else
+				AppSettings.led.showOff(i);
 		}
 	}
 
