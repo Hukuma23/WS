@@ -20,20 +20,24 @@ class AppSettings {
 
 private:
 
+	/* Singleton part
 	// Конструкторы и оператор присваивания недоступны клиентам
 	AppSettings();
-
 	~AppSettings() {}
 	AppSettings(AppSettings const&) = delete;
 	AppSettings& operator= (AppSettings const&) = delete;
+	*/
 
 public:
 
+	/* Singleton part
 	static AppSettings& getInstance() {
 		static AppSettings singleton;
 		return singleton;
 	}
-
+	 */
+	AppSettings();
+	~AppSettings() {}
 
 	uint32_t serial_speed = 115200;
 	String version = "Unknown";
@@ -153,22 +157,14 @@ public:
 	unsigned long long_time = 500;
 
 	byte getMInNumByPin(byte pin);
-
-	/*
-	byte getMSwNumByPin(byte pin);
-	 */
-
+	//byte getMSwNumByPin(byte pin);
 	byte getMSwPinByNum(byte num);
-
 	byte getMInPinByNum(byte num);
 
 	void loadWifiList();
 	int8_t loadNetwork(String ssid = "");
 	void load(char* jsonString);
-
-
 	void load();
-
 
 	void deleteConf();
 
@@ -180,17 +176,10 @@ public:
 
 	void saveLastWifi();
 	void save();
-
-
 	//void save_new();
-
-
 	bool exist();
-
 	void rBootInit();
-
 	//String update(JsonObject& root)
-
 	bool check();
 
 };

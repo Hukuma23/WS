@@ -28,24 +28,29 @@ class ActStates {
 
 private:
 
+	/* Singleton part
 	// Конструкторы и оператор присваивания недоступны клиентам
-
 	ActStates(AppSettings& appSettings);
 	~ActStates();
 
 	ActStates(ActStates const&) = delete;
 	ActStates& operator= (ActStates const&) = delete;
+	 */
 
 	//byte msw_cnt = CONST_MSW_CNT;
 	Timer saveTimer;
-	AppSettings& appSettings;
+	AppSettings &appSettings;
 
 public:
-    static ActStates& getInstance() {
+    /* Singleton part
+	static ActStates& getInstance() {
         static ActStates instance( AppSettings::getInstance());
         return instance;
     }
+     */
 
+	ActStates(AppSettings &appSettings);
+	~ActStates();
 
 	bool needInit = false;
 	bool* sw;
@@ -56,57 +61,31 @@ public:
 	//byte ssw_cnt = CONST_SSW_CNT;
 
 	void load();
-
 	void init();
-
 	void save();
-
 	void save2file();
-
-
-
 	bool exist();
-
+	bool check();
 	String printf();
-
 	String print();
-
-
 	//String update(JsonObject& root);
-
 	//void updateNsave(JsonObject& root);
 
-
 	void setSw(byte num, bool state);
-
 	bool getSw(byte num);
 
 	void setSsw(byte num, bool state);
-
 	bool getSsw(byte num);
-
-
 	uint8_t getSsw();
 
-
 	void setMsw(byte num, bool state) ;
-
-	void initLED();
-
-	void initLED(bool* arr, byte cnt);
-
+	bool getMsw(byte num);
+	String getMswString(byte num);
+	uint8_t getMsw();
 	bool switchMsw(byte num);
 
-	bool getMsw(byte num);
-
-	String getMswString(byte num);
-
-
-	uint8_t getMsw();
-
-
-	bool check();
-
+	void initLED();
+	void initLED(bool* arr, byte cnt);
 };
 
 #endif /* INCLUDE_ACTSTATE_H_ */

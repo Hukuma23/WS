@@ -1,6 +1,6 @@
 #include <MCP.h>
 
-MCP::MCP(MQTT &mqtt) : MCP23017(), appSettings(AppSettings::getInstance()), actStates(ActStates::getInstance()) {
+MCP::MCP(MQTT &mqtt, AppSettings &appSettings, ActStates &actStates) : MCP23017(), appSettings(appSettings), actStates(actStates) {
 	DEBUG4_PRINT("MCP.create");
 	init(mqtt);
 }

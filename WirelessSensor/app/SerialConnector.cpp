@@ -9,7 +9,7 @@
 
 #include <SerialConnector.h>
 
-SerialConnector::SerialConnector(HardwareSerial* serial, MQTT &mqtt) : SerialGuaranteedDeliveryProtocol(serial), appSettings(AppSettings::getInstance()), actStates(ActStates::getInstance()) {
+SerialConnector::SerialConnector(HardwareSerial* serial, MQTT &mqtt, AppSettings &appSettings, ActStates &actStates) : SerialGuaranteedDeliveryProtocol(serial), appSettings(appSettings), actStates(actStates) {
 	this->mqtt = &mqtt;
 
 	setProcessing(ProcessionDelegate(&SerialConnector::processMessage, this));

@@ -38,8 +38,8 @@ protected:
 	AppSettings& appSettings;
 
 	void start();
-	Sensor();
-	Sensor(unsigned int shift, unsigned int interval, MQTT &mqtt);
+	Sensor(AppSettings &appSettings);
+	Sensor(unsigned int shift, unsigned int interval, MQTT &mqtt, AppSettings &appSettings);
 
 public:
 
@@ -67,8 +67,8 @@ private:
 	void init();
 
 public:
-	SensorDHT(MQTT &mqtt, byte dhtType = DHT22);
-	SensorDHT(byte pin, byte dhtType, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	SensorDHT(MQTT &mqtt, AppSettings &appSettings, byte dhtType = DHT22);
+	SensorDHT(byte pin, byte dhtType, MQTT &mqtt, AppSettings &appSettings, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorDHT();
 	void compute();
 	void publish();
@@ -84,8 +84,8 @@ private:
 	void init(byte scl, byte sda);
 
 public:
-	SensorBMP(MQTT &mqtt);
-	SensorBMP(byte scl, byte sda, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	SensorBMP(MQTT &mqtt, AppSettings &appSettings);
+	SensorBMP(byte scl, byte sda, MQTT &mqtt, AppSettings &appSettings, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 	~SensorBMP();
 	void compute();
 	void publish();
@@ -102,8 +102,8 @@ private:
 	void init(byte count);
 
 public:
-	SensorDS(MQTT &mqtt, byte count = 1);
-	SensorDS(byte pin, byte count, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	SensorDS(MQTT &mqtt, AppSettings &appSettings, byte count = 1);
+	SensorDS(byte pin, byte count, MQTT &mqtt, AppSettings &appSettings, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 
 	~SensorDS();
 	void compute();
@@ -119,8 +119,8 @@ private:
 	void init(byte pin);
 
 public:
-	SensorDSS(MQTT &mqtt);
-	SensorDSS(byte pin, MQTT &mqtt, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+	SensorDSS(MQTT &mqtt, AppSettings &appSettings);
+	SensorDSS(byte pin, MQTT &mqtt, AppSettings &appSettings, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
 
 	~SensorDSS();
 	void compute();

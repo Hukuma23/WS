@@ -8,11 +8,11 @@
 #include <Module.h>
 
 // Sensor
-Sensor::Sensor() : timer_shift(DEFAULT_SHIFT), timer_interval(DEFAULT_INTERVAL), appSettings(AppSettings::getInstance()) {
+Sensor::Sensor(AppSettings &appSettings) : timer_shift(DEFAULT_SHIFT), timer_interval(DEFAULT_INTERVAL), appSettings(appSettings) {
 	this->mqtt = NULL;
 }
 
-Sensor::Sensor(unsigned int shift, unsigned int interval, MQTT &mqtt) : timer_shift(shift), timer_interval(interval), appSettings(AppSettings::getInstance()) {
+Sensor::Sensor(unsigned int shift, unsigned int interval, MQTT &mqtt, AppSettings &appSettings) : timer_shift(shift), timer_interval(interval), appSettings(appSettings) {
 	this->mqtt = &mqtt;
 }
 
@@ -70,12 +70,12 @@ void SensorDHT::init() {
 	DHT:begin();
 }
 
-SensorDHT::SensorDHT(MQTT &mqtt, byte dhtType) : DHT(appSettings.dht, dhtType), Sensor(appSettings.shift_dht, appSettings.interval_dht, mqtt){
+SensorDHT::SensorDHT(MQTT &mqtt, AppSettings &appSettings, byte dhtType) : DHT(appSettings.dht, dhtType), Sensor(appSettings.shift_dht, appSettings.interval_dht, mqtt, appSettings){
 	init();
 }
 
 
-SensorDHT::SensorDHT(byte pin, byte dhtType, MQTT &mqtt, unsigned int shift, unsigned int interval) : DHT(pin, dhtType), Sensor(shift, interval, mqtt) {
+SensorDHT::SensorDHT(byte pin, byte dhtType, MQTT &mqtt, AppSettings &appSettings, unsigned int shift, unsigned int interval) : DHT(pin, dhtType), Sensor(shift, interval, mqtt, appSettings) {
 	init();
 }
 
@@ -142,11 +142,11 @@ void SensorBMP::init(byte scl, byte sda) {
 	Wire.begin();
 }
 
-SensorBMP::SensorBMP(MQTT &mqtt) : BMP180(), Sensor(appSettings.shift_bmp, appSettings.interval_bmp, mqtt){
+SensorBMP::SensorBMP(MQTT &mqtt, AppSettings &appSettings) : BMP180(), Sensor(appSettings.shift_bmp, appSettings.interval_bmp, mqtt, appSettings){
 	init(appSettings.scl, appSettings.sda);
 }
 
-SensorBMP::SensorBMP(byte scl, byte sda, MQTT &mqtt, unsigned int shift, unsigned int interval) : BMP180(), Sensor(shift, interval, mqtt) {
+SensorBMP::SensorBMP(byte scl, byte sda, MQTT &mqtt, AppSettings &appSettings, unsigned int shift, unsigned int interval) : BMP180(), Sensor(shift, interval, mqtt, appSettings) {
 	init(scl, sda);
 }
 
@@ -233,11 +233,11 @@ void SensorDS::init(byte count) {
 		this->temperature[i] = undefined;
 }
 
-SensorDS::SensorDS(MQTT &mqtt, byte count) : OneWire(appSettings.ds), Sensor(appSettings.shift_ds, appSettings.interval_ds, mqtt){
+SensorDS::SensorDS(MQTT &mqtt, AppSettings &appSettings, byte count) : OneWire(appSettings.ds), Sensor(appSettings.shift_ds, appSettings.interval_ds, mqtt, appSettings){
 	init(count);
 }
 
-SensorDS::SensorDS(byte pin, byte count, MQTT &mqtt, unsigned int shift, unsigned int interval) : OneWire(pin), Sensor(shift, interval, mqtt) {
+SensorDS::SensorDS(byte pin, byte count, MQTT &mqtt, AppSettings &appSettings, unsigned int shift, unsigned int interval) : OneWire(pin), Sensor(shift, interval, mqtt, appSettings) {
 	init(count);
 }
 
@@ -431,11 +431,11 @@ void SensorDSS::init(byte pin) {
 	DS18S20::Init(pin);
 }
 
-SensorDSS::SensorDSS(MQTT &mqtt) : DS18S20(), Sensor(appSettings.shift_ds, appSettings.interval_ds, mqtt){
+SensorDSS::SensorDSS(MQTT &mqtt, AppSettings &appSettings) : DS18S20(), Sensor(appSettings.shift_ds, appSettings.interval_ds, mqtt, appSettings){
 	init(appSettings.ds);
 }
 
-SensorDSS::SensorDSS(byte pin, MQTT &mqtt, unsigned int shift, unsigned int interval) : DS18S20(), Sensor(shift, interval, mqtt) {
+SensorDSS::SensorDSS(byte pin, MQTT &mqtt, AppSettings &appSettings, unsigned int shift, unsigned int interval) : DS18S20(), Sensor(shift, interval, mqtt, appSettings) {
 	init(pin);
 }
 
