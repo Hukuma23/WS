@@ -136,15 +136,6 @@ bool MCP::turnSw(byte num, bool state) {
 	if (actStates.msw[num] != state) {
 		actStates.setMsw(num, state);
 		MCP23017::digitalWrite(appSettings.msw[num], state);
-
-/* Логирование перенесено во MCP::publish(byte num, bool state, bool longPressed)
-		if (mqtt)
-			if (longPressed)
-				mqtt->publish(appSettings.topMIN_L, num+1, OUT, (state?"ON":"OFF"));
-			else
-				mqtt->publish(appSettings.topMIN, num+1, OUT, (state?"ON":"OFF"));
-*/
-
 	}
 	return state;
 }
