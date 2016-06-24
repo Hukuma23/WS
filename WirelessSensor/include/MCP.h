@@ -25,6 +25,8 @@ private:
 	Timer timerBtnHandle;
 	byte pin;
 	MQTT *mqtt;
+	AppSettings &appSettings;
+	ActStates &actStates;
 
 	void init(MQTT &mqtt);
 	void interruptCallback();
@@ -36,7 +38,7 @@ private:
 	void start();
 
 public:
-	MCP(MQTT &mqtt);
+	MCP(MQTT &mqtt, AppSettings &appSettings, ActStates &actStates);
 	~MCP();
 	void startTimer();
 	void stopTimer();

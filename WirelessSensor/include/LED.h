@@ -30,7 +30,7 @@ public:
 	LED();
 	~LED();
 	LED(byte _cnt);
-	LED(byte pin, byte cnt, byte bright);
+	LED(byte pin, byte cnt, byte bright = BRIGHT);
 
 	void setPin(byte pin);
 	void setBright(byte bright);
@@ -52,6 +52,9 @@ public:
 	void showOff(byte num);
 
 	void print();
+	void printId();
+
+	void initRG(bool* arr, byte arr_cnt);
 
 
 	void rgb (byte num, byte red, byte green, byte blue);

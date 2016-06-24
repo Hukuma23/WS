@@ -11,6 +11,7 @@
 #include <user_config.h>
 #include <SmingCore/SmingCore.h>
 #include <SerialGuaranteedDeliveryProtocol.h>
+#include <AppSettings.h>
 #include <ActStates.h>
 #include <MQTT.h>
 
@@ -18,6 +19,9 @@ class SerialConnector: protected SerialGuaranteedDeliveryProtocol {
 
 private:
 	MQTT* mqtt;
+	AppSettings &appSettings;
+	ActStates &actStates;
+
 	Timer timerSerialCollector;
 	Timer timerSerialReceiver;
 
@@ -28,7 +32,7 @@ private:
 	int16_t sWaterCold, sWaterHot;
 
 public:
-	SerialConnector(HardwareSerial* serial, MQTT &mqtt);
+	SerialConnector(HardwareSerial* serial, MQTT &mqtt, AppSettings &appSettings, ActStates &actStates);
 	~SerialConnector();
 
 	void stopSerialCollector();
@@ -62,10 +66,6 @@ public:
 	void publish();
 
 	bool processCallback(String topic, String message);
-
-
-
-
 
 };
 
