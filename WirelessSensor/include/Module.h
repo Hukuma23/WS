@@ -93,26 +93,6 @@ public:
 	long getPressure();
 };
 
-class SensorDS: protected OneWire, public Sensor {
-
-private:
-	byte count = 0;
-	float* temperature;
-	float readDCByAddr(byte addr[]);
-	void init(byte count);
-
-public:
-	SensorDS(MQTT &mqtt, AppSettings &appSettings, byte count = 1);
-	SensorDS(byte pin, byte count, MQTT &mqtt, AppSettings &appSettings, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
-
-	~SensorDS();
-	void compute();
-	void publish();
-	byte getCount();
-	float getTemperature(byte num);
-	void print();
-};
-
 class SensorDSS: protected DS18S20, public Sensor {
 
 private:
