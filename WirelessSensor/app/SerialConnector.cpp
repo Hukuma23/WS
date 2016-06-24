@@ -9,7 +9,7 @@
 
 #include <SerialConnector.h>
 
-SerialConnector::SerialConnector(HardwareSerial* serial, MQTT &mqtt) : SerialGuaranteedDeliveryProtocol(serial) {
+SerialConnector::SerialConnector(HardwareSerial* serial, MQTT &mqtt) : SerialGuaranteedDeliveryProtocol(serial), appSettings(AppSettings::getInstance()), actStates(ActStates::getInstance()) {
 	this->mqtt = &mqtt;
 
 	setProcessing(ProcessionDelegate(&SerialConnector::processMessage, this));
@@ -27,7 +27,7 @@ SerialConnector::SerialConnector(HardwareSerial* serial, MQTT &mqtt) : SerialGua
 }
 
 void SerialConnector::startSerialCollector() {
-	timerSerialCollector.initializeMs(AppSettings.shift_collector, TimerDelegate(&SerialConnector::setSerialCollector, this)).startOnce();
+	timerSerialCollector.initializeMs(appSettings.shift_collector, TimerDelegate(&SerialConnector::setSerialCollector, this)).startOnce();
 }
 
 void SerialConnector::stopSerialCollector() {
@@ -35,7 +35,7 @@ void SerialConnector::stopSerialCollector() {
 }
 
 void SerialConnector::startSerialReceiver() {
-	timerSerialReceiver.initializeMs(AppSettings.shift_receiver, TimerDelegate(&SerialConnector::setSerialReceiver, this)).startOnce();
+	timerSerialReceiver.initializeMs(appSettings.shift_receiver, TimerDelegate(&SerialConnector::setSerialReceiver, this)).startOnce();
 }
 
 void SerialConnector::stopSerialReceiver() {
@@ -43,7 +43,7 @@ void SerialConnector::stopSerialReceiver() {
 }
 
 void SerialConnector::startListener() {
-	SerialGuaranteedDeliveryProtocol::startListener(AppSettings.interval_listener);
+	SerialGuaranteedDeliveryProtocol::startListener(appSettings.interval_listener);
 }
 
 void SerialConnector::stopListener() {
@@ -62,26 +62,26 @@ uint8_t SerialConnector::sendSerialMessage(uint8_t cmd, uint8_t objType, uint8_t
 
 void SerialConnector::serialCollector() {
 	SerialGuaranteedDeliveryProtocol::sendSerialMessage(SerialCommand::COLLECT, ObjectType::ALL, ObjectId::ALL);
-	mqtt->publish(AppSettings.topLog, OUT, "serialCollector() cmd = " + String(SerialCommand::COLLECT) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
+	mqtt->publish(appSettings.topLog, OUT, "serialCollector() cmd = " + String(SerialCommand::COLLECT) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
 	publish();
 }
 
 void SerialConnector::serialReceiver() {
 	SerialGuaranteedDeliveryProtocol::sendSerialMessage(SerialCommand::GET, ObjectType::ALL, ObjectId::ALL);
-	mqtt->publish(AppSettings.topLog, OUT, "serialReceiver() cmd = " + String(SerialCommand::GET) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
+	mqtt->publish(appSettings.topLog, OUT, "serialReceiver() cmd = " + String(SerialCommand::GET) + " objType=" + String(ObjectType::ALL) + " objId=" + String(ObjectId::ALL));
 }
 
 
 void SerialConnector::setSerialCollector() {
-	if (AppSettings.is_serial) {
-		timerSerialCollector.initializeMs(AppSettings.interval_collector, TimerDelegate(&SerialConnector::serialCollector, this)).start();
+	if (appSettings.is_serial) {
+		timerSerialCollector.initializeMs(appSettings.interval_collector, TimerDelegate(&SerialConnector::serialCollector, this)).start();
 		DEBUG4_PRINTLN("*** Serial Collector timer done!");
 	}
 }
 
 void SerialConnector::setSerialReceiver() {
-	if (AppSettings.is_serial) {
-		timerSerialReceiver.initializeMs(AppSettings.interval_receiver, TimerDelegate(&SerialConnector::serialReceiver, this)).start();
+	if (appSettings.is_serial) {
+		timerSerialReceiver.initializeMs(appSettings.interval_receiver, TimerDelegate(&SerialConnector::serialReceiver, this)).start();
 		DEBUG4_PRINTLN("*** Serial Receiver timer done!");
 	}
 }
@@ -89,10 +89,10 @@ void SerialConnector::setSerialReceiver() {
 
 void IRAM_ATTR SerialConnector::turnSsw(byte num, bool state) {
 	if (state == HIGH) {
-		ActStates.setSsw(num, HIGH);
+		actStates.setSsw(num, HIGH);
 		SerialGuaranteedDeliveryProtocol::sendSerialMessage(SerialCommand::SET_HIGH, ObjectType::SWITCH, num+1);
 	} else {
-		ActStates.setSsw(num, LOW);
+		actStates.setSsw(num, LOW);
 		SerialGuaranteedDeliveryProtocol::sendSerialMessage(SerialCommand::SET_LOW, ObjectType::SWITCH, num+1);
 	}
 }
@@ -114,35 +114,35 @@ void SerialConnector::readSwitches(SerialMessage payload) {
 	uint8_t sw = payload.sw;
 
 
-	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
+	for (byte i = 0; i < appSettings.ssw_cnt; i++) {
 		state = ((sw & (int)powf(2, i)) == 1)?HIGH:LOW;
 
 		DEBUG1_PRINTF("CHECK: readSwitches %d, state = ", i);
 		DEBUG1_PRINTLN(state);
 
-		if (state != ActStates.getSsw(i))
-			ActStates.setSsw(i, state);
+		if (state != actStates.getSsw(i))
+			actStates.setSsw(i, state);
 	}
 	/* !!! Требует тщательной проверки !!!
 	state =  ((sw & 1) == 1)?HIGH:LOW;
-	if (state != ActStates.getSsw().ssw1)
-		ActStates.setSsw1(state);
+	if (state != actStates.getSsw().ssw1)
+		actStates.setSsw1(state);
 
 	state = (((sw & 2)  >> 1) == 1)?HIGH:LOW;
-	if (state != ActStates.ssw2)
-		ActStates.setSsw2(state);
+	if (state != actStates.ssw2)
+		actStates.setSsw2(state);
 
 	state = (((sw & 4)  >> 2) == 1)?HIGH:LOW;
-	if (state != ActStates.ssw3)
-		ActStates.setSsw3(state);
+	if (state != actStates.ssw3)
+		actStates.setSsw3(state);
 
 	state = (((sw & 8)  >> 3) == 1)?HIGH:LOW;
-	if (state != ActStates.ssw4)
-		ActStates.setSsw4(state);
+	if (state != actStates.ssw4)
+		actStates.setSsw4(state);
 
 	state = (((sw & 16) >> 4) == 1)?HIGH:LOW;
-	if (state != ActStates.ssw5)
-		ActStates.setSsw5(state);
+	if (state != actStates.ssw5)
+		actStates.setSsw5(state);
 	 */
 }
 
@@ -154,7 +154,7 @@ void SerialConnector::processMessage() {
 	uint8_t objId = getPayloadObjId();
 	//blink(SWITCH_PIN2, 1, 10);
 
-	mqtt->publish(AppSettings.topLog, OUT, "processMessage() cmd = " + String(cmd) + " objType=" + String(objType) + " objId=" + String(objId));
+	mqtt->publish(appSettings.topLog, OUT, "processMessage() cmd = " + String(cmd) + " objType=" + String(objType) + " objId=" + String(objId));
 
 	/*
     DEBUG4_PRINTLN();
@@ -169,9 +169,9 @@ void SerialConnector::processMessage() {
 	if (objType == ObjectType::SWITCH) {
 		if ((objId == ObjectId::SWITCH_1) || (objId == ObjectId::ALL)) {
 			if (cmd == SerialCommand::SET_LOW) {
-				digitalWrite(AppSettings.sw1, LOW);
+				digitalWrite(appSettings.sw1, LOW);
 			} else if (cmd == SerialCommand::SET_HIGH) {
-				digitalWrite(AppSettings.sw1, HIGH);
+				digitalWrite(appSettings.sw1, HIGH);
 			}
 		}
 	}
@@ -249,17 +249,17 @@ void SerialConnector::publishSerialSensors() {
 
 void SerialConnector::publishSerialSwitches() {
 
-	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
-		if (ActStates.ssw[i])
-			mqtt->publish(AppSettings.topSSW, (i+1), OUT, "ON");	//mqtt.publish(sTopSw_Out+String(i+1), "ON");
+	for (byte i = 0; i < appSettings.ssw_cnt; i++) {
+		if (actStates.ssw[i])
+			mqtt->publish(appSettings.topSSW, (i+1), OUT, "ON");	//mqtt.publish(sTopSw_Out+String(i+1), "ON");
 
 		else
-			mqtt->publish(AppSettings.topSSW, (i+1), OUT, "OFF");	//mqtt.publish(sTopSw_Out+String(i+1), "OFF");
+			mqtt->publish(appSettings.topSSW, (i+1), OUT, "OFF");	//mqtt.publish(sTopSw_Out+String(i+1), "OFF");
 	}
 
-	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
+	for (byte i = 0; i < appSettings.ssw_cnt; i++) {
 		DEBUG4_PRINTF("swState%d is ", i);
-		DEBUG4_PRINTLN(ActStates.ssw[i]);
+		DEBUG4_PRINTLN(actStates.ssw[i]);
 	}
 }
 
@@ -270,14 +270,14 @@ void SerialConnector::publish() {
 
 bool SerialConnector::processCallback(String topic, String message) {
 
-	for (byte i = 0; i < AppSettings.ssw_cnt; i++) {
-		if (topic.equals(mqtt->getTopic(AppSettings.topSSW, (i+1), IN))) {
+	for (byte i = 0; i < appSettings.ssw_cnt; i++) {
+		if (topic.equals(mqtt->getTopic(appSettings.topSSW, (i+1), IN))) {
 			if (message.equals("ON")) {
 				turnSsw(i, HIGH);
 			} else if (message.equals("OFF")) {
 				turnSsw(i, LOW);
 			} else
-				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(AppSettings.topSSW, (i+1), IN)).c_str());
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(appSettings.topSSW, (i+1), IN)).c_str());
 		}
 	}
 

@@ -14,7 +14,6 @@
 #include <MQTT.h>
 #include <Logger.h>
 #include <AppSettings.h>
-#include <ActStates.h>
 
 #ifndef INCLUDE_MODULE_H_
 #define INCLUDE_MODULE_H_
@@ -36,6 +35,7 @@ protected:
 	bool needCompute = true;
 
 	MQTT* mqtt;
+	AppSettings& appSettings;
 
 	void start();
 	Sensor();

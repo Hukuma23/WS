@@ -10,9 +10,6 @@
 
 //FTPServer ftp;
 
-// rBoot OTA object
-rBootHttpUpdate* otaUpdater = 0;
-
 //extern void wdt_feed (void);
 void onMessageReceived(String topic, String message); // Forward declaration for our callback
 void publishSwitches(void);
@@ -25,6 +22,15 @@ void connectFail();
 void stopAllTimers();
 String ShowInfo();
 void initModules();
+
+
+// rBoot OTA object
+rBootHttpUpdate* otaUpdater = 0;
+
+// AppSettings & ActStates singletons
+AppSettings& appSettings = AppSettings::getInstance();
+ActStates& actStates = ActStates::getInstance();
+
 
 Timer timerWIFI;
 
@@ -80,18 +86,18 @@ void IRAM_ATTR turnSw(byte num, bool state) {
 
 	DEBUG4_PRINTF("num=%d; state=%d; ", num, state);
 
-	ActStates.setSw(num, state);
+	actStates.setSw(num, state);
 
-	if (ActStates.getSw(num)) {
+	if (actStates.getSw(num)) {
 		DEBUG4_PRINTF(" set sw[%d] to GREEN;  ", num);
-		digitalWrite(AppSettings.sw[num], HIGH);
-		AppSettings.led.green(num);
+		digitalWrite(appSettings.sw[num], HIGH);
+		//appSettings.led->green(num);
 		//mqtt.publish(sTopSw_Out+String(num+1), "ON");
 	}
 	else {
 		DEBUG4_PRINTF(" set sw[%d] to RED;  ", num);
-		digitalWrite(AppSettings.sw[num], LOW);
-		AppSettings.led.red(num);
+		digitalWrite(appSettings.sw[num], LOW);
+		//appSettings.led->red(num);
 		//mqtt.publish(sTopSw_Out+String(num+1), "OFF");
 	}
 
@@ -101,22 +107,22 @@ void IRAM_ATTR turnSw(byte num, bool state) {
 void initSw() {
 
 
-	for (byte num = 0; num < AppSettings.sw_cnt; num++) {
-		DEBUG4_PRINTF("initSW. pin=%d ", AppSettings.sw[num]);
+	for (byte num = 0; num < appSettings.sw_cnt; num++) {
+		DEBUG4_PRINTF("initSW. pin=%d ", appSettings.sw[num]);
 
-		pinMode(AppSettings.sw[num], OUTPUT);
-		turnSw(num, ActStates.sw[num]);
+		pinMode(appSettings.sw[num], OUTPUT);
+		turnSw(num, actStates.sw[num]);
 		DEBUG4_PRINTLN("  done!");
 	}
 }
 
 
 void IRAM_ATTR interruptHandlerInSw(byte num) {
-	if ((millis() - pushTime[num]) > AppSettings.debounce_time) {
+	if ((millis() - pushTime[num]) > appSettings.debounce_time) {
 		pushTime[num] = millis();
 		pushSwitched[num] = false;
 		pushCount[num] = 1;
-		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] 1st time, nowState = " + String(ActStates.sw[num]);
+		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] 1st time, nowState = " + String(actStates.sw[num]);
 		//mqtt.publish(topCfg_Out, logStr.c_str());
 		DEBUG4_PRINTLN(logStr);
 		return;
@@ -125,16 +131,16 @@ void IRAM_ATTR interruptHandlerInSw(byte num) {
 		pushCount[num]++;
 	}
 
-	if (((millis() - pushTime[num]) < AppSettings.debounce_time) && (pushCount[num] > 4) && (!pushSwitched[num])) {
+	if (((millis() - pushTime[num]) < appSettings.debounce_time) && (pushCount[num] > 4) && (!pushSwitched[num])) {
 
 		pushSwitched[num] = true;
-		turnSw(num, !ActStates.sw[num]);
-		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] " + pushCount[num] +" times, nowState = " + String(ActStates.sw[num]);
+		turnSw(num, !actStates.sw[num]);
+		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] " + pushCount[num] +" times, nowState = " + String(actStates.sw[num]);
 		//mqtt.publish(topCfg_Out, logStr.c_str());
 
 		DEBUG4_PRINT(pushTime[num]);
 		DEBUG4_PRINTF( "   sw%d = ", num);
-		DEBUG4_PRINT(ActStates.sw[num]);
+		DEBUG4_PRINT(actStates.sw[num]);
 		DEBUG4_PRINTLN();
 	}
 }
@@ -159,14 +165,6 @@ void IRAM_ATTR interruptHandlerInSw5() {
 	interruptHandlerInSw(4);
 }
 
-void var_init() {
-	DEBUG4_PRINTLN("_var_init");
-
-	/*for (int i=0; i < sizeof swState; i++) {
-		swState[i] = UNDEF;
-	}
-*/
-}
 
 // Callback for messages, arrived from MQTT server
 void onMessageReceived(String topic, String message) {
@@ -178,15 +176,15 @@ void onMessageReceived(String topic, String message) {
 	DEBUG4_PRINTLN("\"");
 
 	// SW
-	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
+	for (byte i = 0; i < appSettings.sw_cnt; i++) {
 		//if (topic.equals((topSw_In+String(i+1)))) {
-		if (topic.equals(mqtt->getTopic(AppSettings.topSW, (i+1), IN))) {
+		if (topic.equals(mqtt->getTopic(appSettings.topSW, (i+1), IN))) {
 			if (message.equals("ON")) {
 				turnSw(i, HIGH);
 			} else if (message.equals("OFF")) {
 				turnSw(i, LOW);
 			} else
-				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(AppSettings.topSW, (i+1), IN)).c_str());
+				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(appSettings.topSW, (i+1), IN)).c_str());
 		}
 	}
 
@@ -199,7 +197,7 @@ void onMessageReceived(String topic, String message) {
 		serialConnector->processCallback(topic, message);
 
 
-	if (topic.equals(mqtt->getTopic(AppSettings.topConfig, IN))) {
+	if (topic.equals(mqtt->getTopic(appSettings.topConfig, IN))) {
 
 		int msgLen = message.length() + 1;
 		DEBUG4_PRINT("msgLen = ");
@@ -229,28 +227,28 @@ void onMessageReceived(String topic, String message) {
 		if (cmd.equals("sw_update")) {
 			stopAllTimers();
 			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware only now");
-			mqtt->publish(AppSettings.topConfig, OUT, "Will stop all timers and UPDATE on the air firmware only now");
+			mqtt->publish(appSettings.topConfig, OUT, "Will stop all timers and UPDATE on the air firmware only now");
 			OtaUpdate(false); //OtaUpdateSW();
 		}
 		else if (cmd.equals("sw_update_all")) {
 			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware and spiffs now");
-			mqtt->publish(AppSettings.topConfig, OUT, "Will stop all timers and UPDATE on the air firmware and spiffs now");
+			mqtt->publish(appSettings.topConfig, OUT, "Will stop all timers and UPDATE on the air firmware and spiffs now");
 			stopAllTimers();
 			OtaUpdate(true);
 		}
 		else if ((cmd.equals("version")) || (cmd.equals("ver"))) {
-			//mqtt.publish(topCfg_Out, AppSettings.version);
-			mqtt->publish(AppSettings.topConfig, OUT, AppSettings.version);
+			//mqtt.publish(topCfg_Out, appSettings.version);
+			mqtt->publish(appSettings.topConfig, OUT, appSettings.version);
 		}
 		else if (cmd.equals("restart")) {
 			//mqtt.publish(topCfg_Out, "Will restart now");
-			mqtt->publish(AppSettings.topConfig, OUT, "Will restart now");
+			mqtt->publish(appSettings.topConfig, OUT, "Will restart now");
 			System.restart();
 		}
 		else if (cmd.equals("conf_del")) {
 			//mqtt.publish(topCfg_Out, "Delete config now");
-			mqtt->publish(AppSettings.topConfig, OUT, "Will delete config now");
-			AppSettings.deleteConf();
+			mqtt->publish(appSettings.topConfig, OUT, "Will delete config now");
+			appSettings.deleteConf();
 		}
 		else if (cmd.equals("switch")) {
 			uint8 before, after;
@@ -262,19 +260,19 @@ void onMessageReceived(String topic, String message) {
 			result += String(after);
 			result += ". Then will restart\r\n";
 			//mqtt.publish(topCfg_Out, result);
-			mqtt->publish(AppSettings.topConfig, OUT, result);
+			mqtt->publish(appSettings.topConfig, OUT, result);
 			switchBootRom();
 		}
 		else if (cmd.equals("info")) {
 			//mqtt.publish(topCfg_Out, ShowInfo());
-			mqtt->publish(AppSettings.topConfig, OUT, ShowInfo());
+			mqtt->publish(appSettings.topConfig, OUT, ShowInfo());
 		}
 		else if (cmd.equals("uptime")) {
 
 			String strUptime = mqtt->getUptime();
 			DEBUG4_PRINTLN("Uptime is " + strUptime);
 			//mqtt.publish(topCfg_Out, "Uptime is " + strUptime);
-			mqtt->publish(AppSettings.topConfig, OUT, "Uptime is " + strUptime);
+			mqtt->publish(appSettings.topConfig, OUT, "Uptime is " + strUptime);
 		}
 		else if (cmd.equals("reboot")) {
 			DEBUG4_PRINTLN("REBOOT stub routine");
@@ -282,29 +280,29 @@ void onMessageReceived(String topic, String message) {
 		}
 		else if (cmd.equals("conf_httpload")) {
 			String updList = "Will try to load Settings by http";
-			AppSettings.loadHttp();
+			appSettings.loadHttp();
 			//mqtt.publish(topCfg_Out, updList);
-			mqtt->publish(AppSettings.topConfig, OUT, updList);
+			mqtt->publish(appSettings.topConfig, OUT, updList);
 
 		}
 		else if (cmd.equals("conf_save")) {
-			AppSettings.save();
+			appSettings.save();
 			//mqtt.publish(topCfg_Out, "Settings saved.");
-			mqtt->publish(AppSettings.topConfig, OUT, "Settings saved.");
+			mqtt->publish(appSettings.topConfig, OUT, "Settings saved.");
 		}
 		else if (cmd.equals("act_print")) {
-			String strPrint = ActStates.print();
+			String strPrint = actStates.print();
 			DEBUG4_PRINTLN(strPrint);
 			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrint.length());
 			//mqtt.publish(topCfg_Out, strPrint);
-			mqtt->publish(AppSettings.topConfig, OUT, strPrint);
+			mqtt->publish(appSettings.topConfig, OUT, strPrint);
 		}
 		else if (cmd.equals("act_printf")) {
-			String strPrintf = ActStates.printf();
+			String strPrintf = actStates.printf();
 			DEBUG4_PRINTLN(strPrintf);
 			DEBUG4_PRINTF("Answer length is %d bytes\r\n", strPrintf.length());
 			//mqtt.publish(topCfg_Out, strPrintf);
-			mqtt->publish(AppSettings.topConfig, OUT, strPrintf);
+			mqtt->publish(appSettings.topConfig, OUT, strPrintf);
 		}
 		else
 			DEBUG4_PRINTLN("Topic matched, command is UNKNOWN");
@@ -316,7 +314,7 @@ void onMessageReceived(String topic, String message) {
 void mqtt_loop() {
 
 	INFO_PRINTLN("_mqtt_loop");
-	mqtt->publish(AppSettings.topLog+"_mem",OUT,String(system_get_free_heap_size()));
+	mqtt->publish(appSettings.topLog+"_mem",OUT,String(system_get_free_heap_size()));
 	PRINT_MEM();
 
 	publishSwitches();
@@ -341,8 +339,8 @@ void mqtt_loop() {
 
 
 void setCheckWifi() {
-	if (AppSettings.is_wifi) {
-		timerWIFI.initializeMs(AppSettings.interval_wifi, checkWifi).start();
+	if (appSettings.is_wifi) {
+		timerWIFI.initializeMs(appSettings.interval_wifi, checkWifi).start();
 		DEBUG4_PRINTLN("*** WiFi timer done!");
 	}
 }
@@ -418,19 +416,19 @@ void listNetworks(bool succeeded, BssList list) {
 void findNetwork() {
 
 	DEBUG4_PRINTLN("findNetwork()");
-	for (uint8_t j=AppSettings.network_ind; j < AppSettings.wifi_cnt; j++) {
+	for (uint8_t j=appSettings.network_ind; j < appSettings.wifi_cnt; j++) {
 		for (int i = 0; i < list_count; i++) {
 
-			//if (AppSettings.wifiList[j].equalsIgnoreCase(wifilist[i])) {
-			if (AppSettings.wifiList[j].equals(wifilist[i])) {
-				AppSettings.ssid = wifilist[i];
-				AppSettings.network_ind = j+1;
+			//if (appSettings.wifiList[j].equalsIgnoreCase(wifilist[i])) {
+			if (appSettings.wifiList[j].equals(wifilist[i])) {
+				appSettings.ssid = wifilist[i];
+				appSettings.network_ind = j+1;
 
 				DEBUG4_PRINT("network=");
-				DEBUG4_PRINTLN(AppSettings.network_ind);
+				DEBUG4_PRINTLN(appSettings.network_ind);
 
 				DEBUG4_PRINT("ssid=");
-				DEBUG4_PRINTLN(AppSettings.ssid);
+				DEBUG4_PRINTLN(appSettings.ssid);
 
 				return;
 			}
@@ -456,17 +454,17 @@ void saveDefaultWifi()
 	DEBUG4_PRINT("WiFi.ssid = ");
 	DEBUG4_PRINTLN(WifiStation.getSSID());
 
-	DEBUG4_PRINT("AppSettings.ssid = ");
-	DEBUG4_PRINTLN(AppSettings.ssid);
-	DEBUG4_PRINT("AppSettings.pass = ");
-	DEBUG4_PRINTLN(AppSettings.password);
+	DEBUG4_PRINT("appSettings.ssid = ");
+	DEBUG4_PRINTLN(appSettings.ssid);
+	DEBUG4_PRINT("appSettings.pass = ");
+	DEBUG4_PRINTLN(appSettings.password);
 
-	int result = AppSettings.loadNetwork(WifiStation.getSSID());
-	DEBUG4_PRINT("result of AppSettings.loadNetwork = ");
+	int result = appSettings.loadNetwork(WifiStation.getSSID());
+	DEBUG4_PRINT("result of appSettings.loadNetwork = ");
 	DEBUG4_PRINTLN(result);
-	AppSettings.saveLastWifi();
+	appSettings.saveLastWifi();
 
-	//DEBUG4_PRINTLN(AppSettings.printf());
+	//DEBUG4_PRINTLN(appSettings.printf());
 }
 
 
@@ -474,28 +472,28 @@ void startTimers() {
 
 	if (mqtt) {
 		DEBUG4_PRINT("mqttTimer.. ");
-		mqtt->startTimer(mqtt_loop); //timerMQTT.initializeMs(AppSettings.shift_mqtt, setMQTT).startOnce();
+		mqtt->startTimer(mqtt_loop); //timerMQTT.initializeMs(appSettings.shift_mqtt, setMQTT).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 	}
 
 	if (dsSensor) {
 		DEBUG4_PRINT("dsTimer.. ");
-		dsSensor->startTimer(); //timerDS.initializeMs(AppSettings.shift_ds, setReadOneWire).startOnce();
+		dsSensor->startTimer(); //timerDS.initializeMs(appSettings.shift_ds, setReadOneWire).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 	}
 
 	if (dhtSensor) {
 		DEBUG4_PRINT("dhtTimer.. ");
-		dhtSensor->startTimer();	//timerDHT.initializeMs(AppSettings.shift_dht, setReadDHT).startOnce();
+		dhtSensor->startTimer();	//timerDHT.initializeMs(appSettings.shift_dht, setReadDHT).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 	}
 
 	if (bmpSensor) {
 		DEBUG4_PRINT("bmpTimer.. ");
-		bmpSensor->startTimer();	//timerBMP.initializeMs(AppSettings.shift_bmp, setReadBMP).startOnce();
+		bmpSensor->startTimer();	//timerBMP.initializeMs(appSettings.shift_bmp, setReadBMP).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 	}
@@ -509,7 +507,7 @@ void startTimers() {
 
 
 	DEBUG4_PRINT("wifiTimer.. ");
-	timerWIFI.initializeMs(AppSettings.shift_wifi, setCheckWifi).startOnce();
+	timerWIFI.initializeMs(appSettings.shift_wifi, setCheckWifi).startOnce();
 	delay(50);
 	DEBUG4_PRINTLN("armed");
 
@@ -523,12 +521,12 @@ void startTimers() {
 	if (serialConnector) {
 
 		DEBUG4_PRINT("serialCollectorTimer.. ");
-		serialConnector->startSerialCollector();	//timerSerialCollector.initializeMs(AppSettings.shift_collector, setSerialCollector).startOnce();
+		serialConnector->startSerialCollector();	//timerSerialCollector.initializeMs(appSettings.shift_collector, setSerialCollector).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 
 		DEBUG4_PRINT("serialReceiverTimer.. ");
-		serialConnector->startSerialReceiver();	//timerSerialReceiver.initializeMs(AppSettings.shift_receiver, setSerialReceiver).startOnce();
+		serialConnector->startSerialReceiver();	//timerSerialReceiver.initializeMs(appSettings.shift_receiver, setSerialReceiver).startOnce();
 		delay(50);
 		DEBUG4_PRINTLN("armed");
 
@@ -539,7 +537,7 @@ void startTimers() {
 		DEBUG4_PRINTLN("armed");
 
 		DEBUG4_PRINTLN("Send sw init to Serial");
-		uint8_t sw = ActStates.getSsw();
+		uint8_t sw = actStates.getSsw();
 		DEBUG4_PRINT("Sw from ActStates = ");
 		DEBUG4_PRINTLN(sw);
 		serialConnector->sendSerialMessage(SerialCommand::SET_SW, ObjectType::SWITCH, ObjectId::ALL, sw);
@@ -560,14 +558,13 @@ void connectOk() {
 		initModules();
 	}
 
-	var_init();
 	DEBUG4_PRINTLN("Start timers...");
 	startTimers();
 
 }
 
 void checkAppSettings() {
-	if (AppSettings.exist()) {
+	if (appSettings.exist()) {
 		DEBUG1_PRINTLN("Settings.conf successful downloaded. ESP8266 will be restarted soon");
 		timerWIFI.stop();
 		//System.restart();
@@ -578,7 +575,7 @@ void checkAppSettings() {
 void connectOkHttpLoad() {
 	DEBUG4_PRINTLN("I'm CONNECTED needs Settings.conf load by http");
 
-	AppSettings.loadHttp();
+	appSettings.loadHttp();
 
 	timerWIFI.initializeMs(10000, checkAppSettings).start();
 
@@ -611,16 +608,16 @@ void connectFail() {
 
 void publishSwitches() {
 
-	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
-		if (ActStates.getSw(i))
-			mqtt->publish(AppSettings.topSW, (i+1), OUT, "ON");	//mqtt.publish(topSw_Out + String(i+1), "ON");
+	for (byte i = 0; i < appSettings.sw_cnt; i++) {
+		if (actStates.getSw(i))
+			mqtt->publish(appSettings.topSW, (i+1), OUT, "ON");	//mqtt.publish(topSw_Out + String(i+1), "ON");
 		else
-			mqtt->publish(AppSettings.topSW, (i+1), OUT, "OFF");	//mqtt.publish(topSw_Out + String(i+1), "OFF");
+			mqtt->publish(appSettings.topSW, (i+1), OUT, "OFF");	//mqtt.publish(topSw_Out + String(i+1), "OFF");
 	}
 
-	for (byte i = 0; i < AppSettings.sw_cnt; i++) {
+	for (byte i = 0; i < appSettings.sw_cnt; i++) {
 		DEBUG4_PRINTF("swState%d is ",i);
-		DEBUG4_PRINTLN(ActStates.getSw(i));
+		DEBUG4_PRINTLN(actStates.getSw(i));
 	}
 }
 
@@ -712,20 +709,20 @@ void connectWifi(void) {
 
 	PRINT_MEM();
 
-	int8_t result = AppSettings.loadNetwork();
-	DEBUG4_PRINT("Result of AppSettings.loadNetwork() = ");
+	int8_t result = appSettings.loadNetwork();
+	DEBUG4_PRINT("Result of appSettings.loadNetwork() = ");
 	DEBUG4_PRINTLN(String(result));
 
 	PRINT_MEM();
 
 	DEBUG1_PRINT("ASet.ssid = ");
-	DEBUG1_PRINTLN(AppSettings.ssid);
+	DEBUG1_PRINTLN(appSettings.ssid);
 	DEBUG1_PRINT("ASet.pass = ");
-	DEBUG1_PRINTLN(AppSettings.password);
+	DEBUG1_PRINTLN(appSettings.password);
 
 	if (result == 0) {
 
-		WifiStation.config(AppSettings.ssid, AppSettings.password);
+		WifiStation.config(appSettings.ssid, appSettings.password);
 		WifiStation.waitConnection(connectOk, 30, connectFail);
 		time2 = millis();
 	}
@@ -792,14 +789,14 @@ void OtaUpdate(bool isSpiffs) {
 
 #ifndef RBOOT_TWO_ROMS
 	// flash rom to position indicated in the rBoot config rom table
-	otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom0);
+	otaUpdater->addItem(bootconf.roms[slot], appSettings.rom0);
 	//otaUpdater->addItem(bootconf.roms[slot], ROM_0_URL);
 #else
 	// flash appropriate rom
 	if (slot == 0) {
-		otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom0);
+		otaUpdater->addItem(bootconf.roms[slot], appSettings.rom0);
 	} else {
-		otaUpdater->addItem(bootconf.roms[slot], AppSettings.rom0);
+		otaUpdater->addItem(bootconf.roms[slot], appSettings.rom0);
 	}
 #endif
 
@@ -807,10 +804,10 @@ void OtaUpdate(bool isSpiffs) {
 	if (isSpiffs) {
 		// use user supplied values (defaults for 4mb flash in makefile)
 		if (slot == 0) {
-			otaUpdater->addItem(RBOOT_SPIFFS_0, AppSettings.spiffs);
+			otaUpdater->addItem(RBOOT_SPIFFS_0, appSettings.spiffs);
 			//otaUpdater->addItem(RBOOT_SPIFFS_0, SPIFFS_URL);
 		} else {
-			otaUpdater->addItem(RBOOT_SPIFFS_1, AppSettings.spiffs);
+			otaUpdater->addItem(RBOOT_SPIFFS_1, appSettings.spiffs);
 			//otaUpdater->addItem(RBOOT_SPIFFS_1, SPIFFS_URL);
 		}
 	}
@@ -846,7 +843,7 @@ String ShowInfo() {
 	result += "\r\nBoot slot: ";
 	result += bootconf.current_rom;
 	result += "\r\nROM: ";
-	result += AppSettings.version;
+	result += appSettings.version;
 	result += "\r\nSDK: ";
 	result += String(system_get_sdk_version());
 	result += "\r\nFree Heap: ";
@@ -874,7 +871,7 @@ void configureNetwork() {
 	DEBUG4_PRINTLN("*********************************************");
 
 	//Initialization of rBoot OTA
-	AppSettings.rBootInit();
+	appSettings.rBootInit();
 
 	String mac = WifiAccessPoint.getMAC();
 	int mLen = mac.length();
@@ -916,59 +913,59 @@ void configureNetwork() {
  */
 
 void initModules() {
-	if (AppSettings.exist()) {
-		DEBUG1_PRINTLN("ActStates.init().start");
-		DEBUG1_PRINT("ASt.needInit=");DEBUG1_PRINTLN(ActStates.needInit);
-		DEBUG1_PRINT("AS.msw_cnt=");DEBUG1_PRINTLN(AppSettings.msw_cnt);
-		ActStates.init();
-		DEBUG1_PRINTLN("ActStates.init().end");
+	if (appSettings.exist()) {
+		DEBUG1_PRINTLN("actStates.init().start");
+		DEBUG1_PRINT("ASt.needInit=");DEBUG1_PRINTLN(actStates.needInit);
+		DEBUG1_PRINT("AS.msw_cnt=");DEBUG1_PRINTLN(appSettings.msw_cnt);
+		actStates.init();
+		DEBUG1_PRINTLN("actStates.init().end");
 
-		mqtt = new MQTT(AppSettings.broker_ip, AppSettings.broker_port,AppSettings.shift_mqtt, AppSettings.interval_mqtt,AppSettings.main_topic, AppSettings.client_topic, onMessageReceived);
+		mqtt = new MQTT(appSettings.broker_ip, appSettings.broker_port,appSettings.shift_mqtt, appSettings.interval_mqtt,appSettings.main_topic, appSettings.client_topic, onMessageReceived);
 
 		DEBUG4_PRINTF("pmqtt=\"%p\"", mqtt);
 
-		if (AppSettings.is_dht) {
+		if (appSettings.is_dht) {
 			dhtSensor = new SensorDHT(*mqtt);
-			//dhtSensor = new SensorDHT(AppSettings.dht, DHT22, *mqtt, AppSettings.shift_dht, AppSettings.interval_dht);
+			//dhtSensor = new SensorDHT(appSettings.dht, DHT22, *mqtt, appSettings.shift_dht, appSettings.interval_dht);
 		}
 
-		if (AppSettings.is_ds) {
+		if (appSettings.is_ds) {
 			dsSensor = new SensorDSS(*mqtt);	//dsSensor = new SensorDS(*mqtt, 1);
-			//dsSensor = new SensorDS(AppSettings.ds, 1, *mqtt, AppSettings.shift_ds, AppSettings.interval_ds);
+			//dsSensor = new SensorDS(appSettings.ds, 1, *mqtt, appSettings.shift_ds, appSettings.interval_ds);
 		}
 
-		if (AppSettings.is_bmp) { // I2C init
+		if (appSettings.is_bmp) { // I2C init
 			bmpSensor = new SensorBMP(*mqtt);
-			//bmpSensor = new SensorBMP(AppSettings.scl, AppSettings.sda, *mqtt, AppSettings.shift_bmp, AppSettings.interval_bmp);
+			//bmpSensor = new SensorBMP(appSettings.scl, appSettings.sda, *mqtt, appSettings.shift_bmp, appSettings.interval_bmp);
 		}
 
-		if (AppSettings.is_mcp) { // I2C init
+		if (appSettings.is_mcp) { // I2C init
 			mcp = new MCP(*mqtt);
 			//mcp = new SwIn(*mqtt);
 		}
 
-		if (AppSettings.is_serial) {
+		if (appSettings.is_serial) {
 			serialConnector = new SerialConnector(&Serial, *mqtt);
 		}
 
 		PRINT_MEM();
 
-		if (AppSettings.is_insw) {
-			byte in_cnt = AppSettings.in_cnt;
+		if (appSettings.is_insw) {
+			byte in_cnt = appSettings.in_cnt;
 			for (byte i = 0; i < in_cnt; i++) {
-				pinMode(AppSettings.in[i], INPUT);
+				pinMode(appSettings.in[i], INPUT);
 			}
 
 			if (in_cnt >= 1)
-				attachInterrupt(AppSettings.in[0], interruptHandlerInSw1, HIGH);
+				attachInterrupt(appSettings.in[0], interruptHandlerInSw1, HIGH);
 			if (in_cnt >= 2)
-				attachInterrupt(AppSettings.in[1], interruptHandlerInSw2, HIGH);
+				attachInterrupt(appSettings.in[1], interruptHandlerInSw2, HIGH);
 			if (in_cnt >= 3)
-				attachInterrupt(AppSettings.in[2], interruptHandlerInSw3, HIGH);
+				attachInterrupt(appSettings.in[2], interruptHandlerInSw3, HIGH);
 			if (in_cnt >= 4)
-				attachInterrupt(AppSettings.in[3], interruptHandlerInSw4, HIGH);
+				attachInterrupt(appSettings.in[3], interruptHandlerInSw4, HIGH);
 			if (in_cnt >= 5)
-				attachInterrupt(AppSettings.in[4], interruptHandlerInSw5, HIGH);
+				attachInterrupt(appSettings.in[4], interruptHandlerInSw5, HIGH);
 
 		}
 
@@ -989,28 +986,30 @@ void init() {
 	Serial.systemDebugOutput(false); // Won't allow debug print to serial
 #endif
 
+
+
 	INFO_PRINT("Firmware started + Version: ");
-	INFO_PRINTLN(AppSettings.version);
+	INFO_PRINTLN(appSettings.version);
 
 	PRINT_MEM();
 
-	if (AppSettings.exist()) {
-		AppSettings.loadWifiList();
+	if (appSettings.exist()) {
+		appSettings.loadWifiList();
 
 		//PRINT_MEM();
 
-		for (int i=0; i < AppSettings.wifi_cnt; i++)
-			DEBUG4_PRINTLN(AppSettings.wifiList[i]);
+		for (int i=0; i < appSettings.wifi_cnt; i++)
+			DEBUG4_PRINTLN(appSettings.wifiList[i]);
 
 
 		WifiAccessPoint.enable(false);
 		WifiStation.enable(true);
 
-		if (!(AppSettings.ssid.equals("")) && (AppSettings.ssid != null)) {
-			WifiStation.config(AppSettings.ssid, AppSettings.password);
+		if (!(appSettings.ssid.equals("")) && (appSettings.ssid != null)) {
+			WifiStation.config(appSettings.ssid, appSettings.password);
 			WifiStation.waitConnection(connectOk, 30, connectFail); // We recommend 20+ seconds for connection timeout at start
-			DEBUG1_PRINTF("ASet.ssid = %s  ", AppSettings.ssid.c_str());
-			DEBUG1_PRINTF("pass = %s", AppSettings.password.c_str());
+			DEBUG1_PRINTF("ASet.ssid = %s  ", appSettings.ssid.c_str());
+			DEBUG1_PRINTF("pass = %s", appSettings.password.c_str());
 			DEBUG1_PRINTLN();
 
 			PRINT_MEM();

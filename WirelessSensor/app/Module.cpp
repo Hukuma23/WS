@@ -8,11 +8,11 @@
 #include <Module.h>
 
 // Sensor
-Sensor::Sensor() : timer_shift(DEFAULT_SHIFT), timer_interval(DEFAULT_INTERVAL) {
+Sensor::Sensor() : timer_shift(DEFAULT_SHIFT), timer_interval(DEFAULT_INTERVAL), appSettings(AppSettings::getInstance()) {
 	this->mqtt = NULL;
 }
 
-Sensor::Sensor(unsigned int shift, unsigned int interval, MQTT &mqtt) : timer_shift(shift), timer_interval(interval) {
+Sensor::Sensor(unsigned int shift, unsigned int interval, MQTT &mqtt) : timer_shift(shift), timer_interval(interval), appSettings(AppSettings::getInstance()) {
 	this->mqtt = &mqtt;
 }
 
@@ -70,7 +70,7 @@ void SensorDHT::init() {
 	DHT:begin();
 }
 
-SensorDHT::SensorDHT(MQTT &mqtt, byte dhtType) : DHT(AppSettings.dht, dhtType), Sensor(AppSettings.shift_dht, AppSettings.interval_dht, mqtt){
+SensorDHT::SensorDHT(MQTT &mqtt, byte dhtType) : DHT(appSettings.dht, dhtType), Sensor(appSettings.shift_dht, appSettings.interval_dht, mqtt){
 	init();
 }
 
@@ -119,14 +119,14 @@ void SensorDHT::publish() {
 	bool result;
 
 	if (temperature != undefined) {
-		result = mqtt->publish(AppSettings.topDHT_t, OUT, String(temperature));
+		result = mqtt->publish(appSettings.topDHT_t, OUT, String(temperature));
 
 		if (result)
 			temperature = undefined;
 	}
 
 	if (humidity != undefined) {
-		result = mqtt->publish(AppSettings.topDHT_h, OUT, String(humidity));
+		result = mqtt->publish(appSettings.topDHT_h, OUT, String(humidity));
 
 		if (result)
 			humidity = undefined;
@@ -142,8 +142,8 @@ void SensorBMP::init(byte scl, byte sda) {
 	Wire.begin();
 }
 
-SensorBMP::SensorBMP(MQTT &mqtt) : BMP180(), Sensor(AppSettings.shift_bmp, AppSettings.interval_bmp, mqtt){
-	init(AppSettings.scl, AppSettings.sda);
+SensorBMP::SensorBMP(MQTT &mqtt) : BMP180(), Sensor(appSettings.shift_bmp, appSettings.interval_bmp, mqtt){
+	init(appSettings.scl, appSettings.sda);
 }
 
 SensorBMP::SensorBMP(byte scl, byte sda, MQTT &mqtt, unsigned int shift, unsigned int interval) : BMP180(), Sensor(shift, interval, mqtt) {
@@ -205,14 +205,14 @@ void SensorBMP::publish() {
 	bool result;
 
 	if (temperature != undefined) {
-		result = mqtt->publish(AppSettings.topBMP_t, OUT, String(temperature));
+		result = mqtt->publish(appSettings.topBMP_t, OUT, String(temperature));
 
 		if (result)
 			temperature = undefined;
 	}
 
 	if (pressure != undefined) {
-		result = mqtt->publish(AppSettings.topBMP_p, OUT, String(pressure));
+		result = mqtt->publish(appSettings.topBMP_p, OUT, String(pressure));
 
 		if (result)
 			pressure = undefined;
@@ -233,7 +233,7 @@ void SensorDS::init(byte count) {
 		this->temperature[i] = undefined;
 }
 
-SensorDS::SensorDS(MQTT &mqtt, byte count) : OneWire(AppSettings.ds), Sensor(AppSettings.shift_ds, AppSettings.interval_ds, mqtt){
+SensorDS::SensorDS(MQTT &mqtt, byte count) : OneWire(appSettings.ds), Sensor(appSettings.shift_ds, appSettings.interval_ds, mqtt){
 	init(count);
 }
 
@@ -282,7 +282,7 @@ void SensorDS::publish() {
 		DEBUG4_PRINTLN(temperature[i]);
 
 		if (temperature[i] != undefined) {
-			result = mqtt->publish(AppSettings.topDS_t, i, OUT, String(temperature[i]));
+			result = mqtt->publish(appSettings.topDS_t, i, OUT, String(temperature[i]));
 			DEBUG4_PRINTF("result = %d", result);
 			DEBUG4_PRINTLN();
 			if (result)
@@ -431,8 +431,8 @@ void SensorDSS::init(byte pin) {
 	DS18S20::Init(pin);
 }
 
-SensorDSS::SensorDSS(MQTT &mqtt) : DS18S20(), Sensor(AppSettings.shift_ds, AppSettings.interval_ds, mqtt){
-	init(AppSettings.ds);
+SensorDSS::SensorDSS(MQTT &mqtt) : DS18S20(), Sensor(appSettings.shift_ds, appSettings.interval_ds, mqtt){
+	init(appSettings.ds);
 }
 
 SensorDSS::SensorDSS(byte pin, MQTT &mqtt, unsigned int shift, unsigned int interval) : DS18S20(), Sensor(shift, interval, mqtt) {
@@ -467,7 +467,7 @@ void SensorDSS::publish() {
 			DEBUG4_PRINTHEX((uint32_t)ds_id);
 
 			if (DS18S20::IsValidTemperature(i)) {
-				result = mqtt->publish(AppSettings.topDS_t, i, OUT, String(DS18S20::GetCelsius(i)));
+				result = mqtt->publish(appSettings.topDS_t, i, OUT, String(DS18S20::GetCelsius(i)));
 				DEBUG4_PRINTF("result = %d", result);
 				DEBUG4_PRINTLN();
 

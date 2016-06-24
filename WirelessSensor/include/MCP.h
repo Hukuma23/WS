@@ -25,6 +25,8 @@ private:
 	Timer timerBtnHandle;
 	byte pin;
 	MQTT *mqtt;
+	AppSettings& appSettings;
+	ActStates& actStates;
 
 	void init(MQTT &mqtt);
 	void interruptCallback();
