@@ -43,12 +43,15 @@ void MCP::init(MQTT &mqtt) {
 }
 
 void MCP::interruptReset() {
-	//DEBUG4_PRINT("MCP.interruptReset");
+	DEBUG1_PRINT("MCP.interruptReset");
 	uint8_t pin = MCP23017::getLastInterruptPin();
 	uint8_t last_state = MCP23017::getLastInterruptPinValue();
 
-	//DEBUG4_PRINTF("interrupt pin= %d, state=%d", pin, last_state);
-	//DEBUG4_PRINTLN();
+	DEBUG1_PRINTF("interrupt pin= %d, state=%d", pin, last_state);
+	String msg = "interrupt pin= " + String(pin) + ", state= " + String(last_state);
+	mqtt->publish("log_mcp_rst", OUT, msg);
+
+	DEBUG1_PRINTLN();
 }
 
 void MCP::interruptHandler() {
@@ -60,6 +63,9 @@ void MCP::interruptHandler() {
 	uint8_t act_state = MCP23017::digitalRead(pin);
 
 	DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
+
+	String msg = "push pin= " + String(pin) + ", state= " + String(act_state);
+	mqtt->publish("log_mcp_handler", OUT, msg);
 
 	if (act_state == LOW) {
 		timerBtnHandle.initializeMs(LONG_TIME, TimerDelegate(&MCP::longtimeHandler, this)).startOnce();
