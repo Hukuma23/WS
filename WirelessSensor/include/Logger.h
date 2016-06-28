@@ -9,8 +9,8 @@
 #define INCLUDE_LOGGER_H_
 
 
-#define DEBUG1
-#define MEMORY
+//#define DEBUG1
+//#define MEMORY
 
 
 //!---------------------------------------------------------------------------------------------------------
