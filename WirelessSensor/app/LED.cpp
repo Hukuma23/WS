@@ -14,19 +14,19 @@ LED::~LED() {
 }
 
 LED::LED() : pin(0), bright(BRIGHT), cnt(1) {
-	DEBUG4_PRINTF("LED()r\n", this);
+	//DEBUG4_PRINTF("LED()r\n", this);
 	led = new char[cnt*3];
 	printId();
 }
 
 LED::LED(byte _pin, byte _cnt, byte _bright) : pin(_pin), cnt(_cnt), bright(_bright)  {
-	DEBUG4_PRINTF("LED(pin, cnt, bright)r\n", this);
+	//DEBUG4_PRINTF("LED(pin, cnt, bright)r\n", this);
 	led = new char[cnt*3];
 	printId();
 }
 
 LED::LED(byte _cnt) : pin(0), cnt(_cnt), bright(BRIGHT)  {
-	DEBUG4_PRINTF("LED(cnt)r\n", this);
+	//DEBUG4_PRINTF("LED(cnt)r\n", this);
 	led = new char[cnt*3];
 	printId();
 }
@@ -36,7 +36,7 @@ void LED::printId() {
 }
 
 void LED::setCount(byte cnt) {
-	DEBUG4_PRINTF("LED::setCount()\r\n");
+	//DEBUG4_PRINTF("LED::setCount()\r\n");
 
 	if ((this->cnt != cnt)  && (cnt > 0)){
 		delete led;
@@ -50,7 +50,7 @@ void LED::setCount(byte cnt) {
 void LED::initRG(bool* arr, byte arr_cnt) {
 	print();
 	byte cnt = (this->cnt<arr_cnt?this->cnt:arr_cnt);
-	DEBUG4_PRINTF("initRG.cnt = %d\r\n", cnt);
+	//DEBUG4_PRINTF("initRG.cnt = %d\r\n", cnt);
 	for (byte i = 0; i < cnt; i++) {
 		if (arr[i]) { 	//GREEN
 			led[3*i] = bright;
@@ -87,7 +87,7 @@ byte LED::getBright() {
 }
 
 bool LED::setColor(byte num, char* color) {
-	DEBUG4_PRINTF("LED::setColor()\r\n");
+	//DEBUG4_PRINTF("LED::setColor()\r\n");
 	print();
 
 	if (num >= cnt)
@@ -102,14 +102,14 @@ bool LED::setColor(byte num, char* color) {
 }
 
 void LED::show() {
-	DEBUG4_PRINTF("LED::show()\r\n");
+	//DEBUG4_PRINTF("LED::show()\r\n");
 	print();
 	ws2812_writegrb(pin, led, (cnt*3));
 	print();
 }
 
 void LED::red(byte num) {
-	DEBUG4_PRINTF("LED::red()\r\n");
+	//DEBUG4_PRINTF("LED::red()\r\n");
 	print();
 	char color[3] = {0,bright,0};
 	setColor(num, color);
@@ -117,7 +117,7 @@ void LED::red(byte num) {
 }
 
 void LED::green(byte num) {
-	DEBUG4_PRINTF("LED::green()\r\n");
+	//DEBUG4_PRINTF("LED::green()\r\n");
 	print();
 	char color[3] = {bright,0,0};
 	setColor(num, color);
@@ -148,7 +148,7 @@ void LED::rgb (byte num, byte red, byte green, byte blue) {
 }
 
 void LED::print() {
-	printId();
+	/*printId();
 	DEBUG4_PRINTF("led[%d] (G R B): ", cnt);
 	for (byte i = 0; i < cnt; i++){
 		for (byte c=0; c < 3; c++) {
@@ -157,16 +157,17 @@ void LED::print() {
 		DEBUG4_PRINTF(" ");
 	}
 	DEBUG4_PRINTF("\r\n");
+	*/
 }
 
 void LED::showOn(byte num) {
-	DEBUG4_PRINTF("LED::showOn()\r\n");
+	//DEBUG4_PRINTF("LED::showOn()\r\n");
 	print();
 	green(num);
 }
 
 void LED::showOff(byte num) {
-	DEBUG4_PRINTF("LED::showOff()\r\n");
+	//DEBUG4_PRINTF("LED::showOff()\r\n");
 	print();
 	red(num);
 }
