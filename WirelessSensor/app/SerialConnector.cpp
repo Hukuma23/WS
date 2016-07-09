@@ -43,6 +43,9 @@ void SerialConnector::stopSerialReceiver() {
 }
 
 void SerialConnector::startListener() {
+
+	DEBUG1_PRINT("Payload size = ");
+	DEBUG1_PRINTLN(String(getPayloadSize()));
 	SerialGuaranteedDeliveryProtocol::startListener(appSettings.interval_listener);
 }
 
@@ -274,8 +277,10 @@ bool SerialConnector::processCallback(String topic, String message) {
 		if (topic.equals(mqtt->getTopic(appSettings.topSSW, (i+1), IN))) {
 			if (message.equals("ON")) {
 				turnSsw(i, HIGH);
+				return true;
 			} else if (message.equals("OFF")) {
 				turnSsw(i, LOW);
+				return true;
 			} else
 				DEBUG4_PRINTF("Topic %s, message is UNKNOWN", (mqtt->getTopic(appSettings.topSSW, (i+1), IN)).c_str());
 		}
