@@ -199,9 +199,9 @@ void onMessageReceived(String topic, String message) {
 		mcp->processCallback(topic, message);
 	}
 	// *** Serial block ***
-	if (serialConnector)
-		serialConnector->processCallback(topic, message);
-
+	if (serialConnector) {
+		if (serialConnector->processCallback(topic, message)) return;
+	}
 
 	if (topic.equals(mqtt->getTopic(appSettings->topConfig, IN))) {
 
@@ -548,9 +548,6 @@ void startTimers() {
 		DEBUG4_PRINTLN(sw);
 		serialConnector->sendSerialMessage(SerialCommand::SET_SW, ObjectType::SWITCH, ObjectId::ALL, sw);
 		serialConnector->publishSerialSwitches();
-
-		DEBUG4_PRINT("Payload size = ");
-		DEBUG4_PRINTLN(protocol.getPayloadSize());
 	}
 }
 
