@@ -111,7 +111,7 @@ public:
 	LED* led;
 
 	byte* msw;
-	byte msw_cnt;
+	byte msw_cnt=0;
 	byte* min;
 	byte min_cnt;
 	byte m_int;
