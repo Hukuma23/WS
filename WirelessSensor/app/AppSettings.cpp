@@ -178,6 +178,7 @@
 		m_int = pins["mint"];
 
 		if (pins.containsKey("sw")) {
+			DEBUG1_PRINTF("AS.load(sw)");
 			JsonObject& jSw = pins["sw"];
 			this->sw_cnt = (byte)jSw["cnt"];
 			sw = new byte[sw_cnt];
@@ -188,6 +189,7 @@
 		}
 
 		if (pins.containsKey("ssw")) {
+			DEBUG1_PRINTF("AS.load(ssw)");
 			JsonObject& jSsw = pins["ssw"];
 			this->ssw_cnt = (byte)jSsw["cnt"];
 			ssw = new byte[ssw_cnt];
@@ -198,6 +200,7 @@
 		}
 
 		if (pins.containsKey("mcp")) {
+			DEBUG1_PRINTF("AS.load(mcp)");
 			JsonObject& jMCP = pins["mcp"];
 
 			if (jMCP.containsKey("sw")) {
@@ -579,7 +582,7 @@
 		String str;
 		root.printTo(str);
 		fileSetContent(APP_SETTINGS_FILE, str);
-		DEBUG4_PRINTLN(root.toJsonString());
+		//DEBUG4_PRINTLN(root.toJsonString());
 		INFO_PRINTLN("Settings file was saved");
 
 		delete[] jsonString;
