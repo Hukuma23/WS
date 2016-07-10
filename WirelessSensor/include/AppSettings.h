@@ -118,7 +118,7 @@ public:
 
 	// HTTP
 	HttpClient httpClient;
-	String urlFW[2] = {"http://10.0.1.22:8080/ota/settings.conf", "http://10.4.1.59:8080/Blink/settings.conf"};
+	String urlFW[2] = {"http://10.0.1.22:8080/static/OTA/cork/settings.conf", "http://10.4.1.59:8080/Blink/settings.conf"};
 	uint8_t urlIndex = 0;
 	Timer timerHttp;
 
