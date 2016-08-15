@@ -14,12 +14,15 @@
 #include <MQTT.h>
 #include <Logger.h>
 #include <AppSettings.h>
+#include <HardwareSerial.h>
+//#include <LCD1602.h>
 
 #ifndef INCLUDE_MODULE_H_
 #define INCLUDE_MODULE_H_
 
 #define DEFAULT_SHIFT 		100
 #define DEFAULT_INTERVAL 	60000
+#define MAX_CRC_ERRORS		10
 
 class Sensor;
 class SensorDHT;
@@ -57,6 +60,30 @@ public:
 	void stopTimer();
 
 	void setMqtt(MQTT &mqtt);
+};
+
+class SensorMHZ: public Sensor {
+
+private:
+	int co2 = undefined;
+	byte crc_error_cnt = 0;
+	byte cmd[9] = {0xFF,0x01,0x86,0x00,0x00,0x00,0x00,0x00,0x79};
+	//unsigned char response[9];
+	char response[9];
+
+	HardwareSerial *serial;
+	int readCO2();
+	byte sendSerial(byte *buff, byte size);
+
+
+public:
+	SensorMHZ(MQTT &mqtt, AppSettings &appSettings, HardwareSerial *serial);
+	//SensorMHZ19(HardwareSerial &serial, MQTT &mqtt, AppSettings &appSettings, unsigned int shift = DEFAULT_SHIFT, unsigned int interval = DEFAULT_INTERVAL);
+
+	~SensorMHZ();
+	void compute();
+	void publish();
+	int getCO2();
 };
 
 class SensorDHT: protected DHT, public Sensor {

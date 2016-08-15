@@ -63,6 +63,94 @@ void Sensor::publish() {DEBUG4_PRINTLN("Sensor.publish()");};
 void Sensor::compute() {DEBUG4_PRINTLN("Sensor.compute()");};
 
 
+
+// SensorCO2
+
+SensorMHZ::SensorMHZ(MQTT &mqtt, AppSettings &appSettings, HardwareSerial *serial):serial(serial), Sensor(appSettings.shift_mhz, appSettings.interval_mhz, mqtt, appSettings) {}
+SensorMHZ::~SensorMHZ(){};
+
+
+byte SensorMHZ::sendSerial(byte *buff, byte size) {
+	for (int i = 0; i < size; i++)
+		serial->write(buff[i]);
+	return size;
+}
+
+int SensorMHZ::readCO2() {
+	sendSerial(cmd, 9);
+	memset(response, 0, 9);
+	serial->readBytes(response, 9);
+
+	int i;
+	byte crc = 0;
+	for (i = 1; i < 8; i++) crc+=response[i];
+	crc = 255 - crc;
+	crc++;
+
+	if ( !(response[0] == 0xFF && response[1] == 0x86 && response[8] == crc) ) {
+		int result = mqtt->publish(appSettings.topLog, OUT, "CRC error=" + String(crc));
+		ERROR_PRINTLN("SensorMHZ19: CRC error: " + String(crc) + " / "+ String(response[8]));
+	} else {
+		crc_error_cnt = 0;
+		unsigned int responseHigh = (unsigned int) response[2];
+		unsigned int responseLow = (unsigned int) response[3];
+		unsigned int ppm = (256*responseHigh) + responseLow;
+		DEBUG1_PRINTF("SensorMHZ19: ppm=", ppm);
+		int result = mqtt->publish(appSettings.topLog, OUT, "CO2=" + String(ppm));
+		return ppm;
+	}
+	crc_error_cnt++;
+	return undefined;
+}
+
+void SensorMHZ::compute() {
+	DEBUG4_PRINTLN("_SensorMHZ19");
+	co2 = SensorMHZ::readCO2();
+
+	// check crc error count, when it more than MAX_CRC_ERRORS ESP will restart
+	if (crc_error_cnt > MAX_CRC_ERRORS) {
+		int result = mqtt->publish(appSettings.topLog, OUT, "CRC error count=" + String(crc_error_cnt-1) + "\r\nWill restart now!");
+		system_restart();
+	}
+
+	// check if returns are valid, if they are NaN (not a number) then something went wrong!
+	if (isnan(co2)) {
+		ERROR_PRINTLN("Error: Failed to read from MH-Z19");
+		co2 = undefined;
+		return;
+	} else {
+		DEBUG4_PRINT("CO2: ");
+		DEBUG4_PRINT(co2);
+		DEBUG4_PRINTLN(" ppm");
+		return;
+	}
+}
+
+int SensorMHZ::getCO2() {
+	return co2;
+}
+
+
+void SensorMHZ::publish() {
+	DEBUG4_PRINTLN("_publishDHT");
+
+	if (mqtt == NULL) {
+		return;
+	}
+
+	bool result;
+
+	if (co2 != undefined) {
+		result = mqtt->publish(appSettings.topMHZ, OUT, String(co2));
+
+		if (result)
+			co2 = undefined;
+	}
+}
+
+
+
+
 // SensorDHT
 SensorDHT::~SensorDHT() {}
 

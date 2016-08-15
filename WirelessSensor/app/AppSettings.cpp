@@ -159,6 +159,7 @@
 		topBMP_p = (const char*)mqtt["bmp_p"];
 
 		topDS_t = (const char*)mqtt["ds_t"];
+		topMHZ = (const char*)mqtt["mhz"];
 
 		topSW = (const char*)mqtt["sw"];
 		topSSW = (const char*)mqtt["ssw"];
@@ -252,6 +253,7 @@
 		is_serial = modules["is_serial"];
 		is_insw = modules["is_insw"];
 		is_mcp = modules["is_mcp"];
+		is_mhz = modules["is_mhz"];
 
 		JsonObject& timers = config["timers"];
 		shift_mqtt = timers["shift_mqtt"];
@@ -262,6 +264,7 @@
 		shift_collector = timers["shift_collector"];
 		shift_receiver = timers["shift_receiver"];
 		shift_mcp = timers["shift_mcp"];
+		shift_mhz = timers["shift_mhz"];
 		shift_save = timers["shift_save"];
 
 		interval_mqtt = timers["interval_mqtt"];
@@ -273,6 +276,7 @@
 		interval_collector = timers["interval_collector"];
 		interval_receiver = timers["interval_receiver"];
 		interval_mcp = timers["interval_mcp"];
+		interval_mhz = timers["interval_mhz"];
 
 		debounce_time = timers["debounce_time"];
 		long_time = timers["long_time"];
@@ -344,6 +348,7 @@
 
 	void AppSettings::downloadSettings() {
 		httpClient.downloadString(urlFW[urlIndex], HttpClientCompletedDelegate(&AppSettings::onComplete, this));
+		//httpClient.downloadFile(urlFW[urlIndex], APP_SETTINGS_FILE, HttpClientCompletedDelegate(&AppSettings::onComplete, this));
 	}
 
 	void AppSettings::loadHttp() {
@@ -491,6 +496,7 @@
 		mqtt_topic["bmp_p"] = topBMP_p.c_str();
 
 		mqtt_topic["ds_t"] = topDS_t.c_str();
+		mqtt_topic["mhz"] = topMHZ.c_str();
 
 		mqtt_topic["sw"] = topSW.c_str();
 		mqtt_topic["ssw"] = topSSW.c_str();
@@ -537,6 +543,7 @@
 		modules["is_serial"] = is_serial;
 		modules["is_insw"] = is_insw;
 		modules["is_mcp"] = is_mcp;
+		modules["is_mhz"] = is_mhz;
 
 		JsonObject& timers = (isExist?config["timers"]:jsonBuffer.createObject());
 		timers["shift_mqtt"] = shift_mqtt;
@@ -547,6 +554,7 @@
 		timers["shift_collector"] = shift_collector;
 		timers["shift_receiver"] = shift_receiver;
 		timers["shift_mcp"] = shift_mcp;
+		timers["shift_mhz"] = shift_mhz;
 		timers["shift_save"] = shift_save;
 
 		timers["interval_mqtt"] = interval_mqtt;
@@ -558,6 +566,7 @@
 		timers["interval_collector"] = interval_collector;
 		timers["interval_receiver"] = interval_receiver;
 		timers["interval_mcp"] = interval_mcp;
+		timers["interval_mhz"] = interval_mhz;
 
 		timers["debounce_time"] = debounce_time;
 		timers["long_time"] = long_time;
@@ -645,6 +654,7 @@
 		mqtt["bmp_p"] = topBMP_p.c_str();
 
 		mqtt["ds_t"] = topDS_t.c_str();
+		mqtt["mhz"] = topMHZ.c_str();
 
 		mqtt["sw"] = topSW.c_str();
 		mqtt["ssw"] = topSSW.c_str();
@@ -695,6 +705,7 @@
 		modules["is_serial"] = is_serial;
 		modules["is_insw"] = is_insw;
 		modules["is_mcp"] = is_mcp;
+		modules["is_mhz"] = is_mhz;
 
 		JsonObject& timers = jsonBuffer.createObject();
 		timers["shift_mqtt"] = shift_mqtt;
@@ -705,6 +716,7 @@
 		timers["shift_collector"] = shift_collector;
 		timers["shift_receiver"] = shift_receiver;
 		timers["shift_mcp"] = shift_mcp;
+		timers["shift_mhz"] = shift_mhz;
 		timers["shift_save"] = shift_save;
 
 		timers["interval_mqtt"] = interval_mqtt;
@@ -716,6 +728,7 @@
 		timers["interval_collector"] = interval_collector;
 		timers["interval_receiver"] = interval_receiver;
 		timers["interval_mcp"] = interval_mcp;
+		timers["interval_mhz"] = interval_mhz;
 
 		timers["debounce_time"] = debounce_time;
 		timers["long_time"] = long_time;
@@ -928,6 +941,10 @@
 				if (modules.containsKey("is_mcp")) {
 					this->is_mcp = modules["is_mcp"];
 					result += "is_mcp, ";
+				}
+				if (modules.containsKey("is_mhz")) {
+					this->is_mhz = modules["is_mhz"];
+					result += "is_mhz, ";
 				}
 			}
 

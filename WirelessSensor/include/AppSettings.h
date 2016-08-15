@@ -81,6 +81,8 @@ public:
 
 	String topDS_t;
 
+	String topMHZ;
+
 	String topSW;
 	String topSSW;
 
@@ -118,7 +120,7 @@ public:
 
 	// HTTP
 	HttpClient httpClient;
-	String urlFW[2] = {"http://10.0.1.22:8080/static/OTA/cork/settings.conf", "http://10.4.1.59:8080/Blink/settings.conf"};
+	String urlFW[3] = {"http://10.0.1.22:8088/OTA/lroom/settings.conf", "http://nlpi.azurewebsites.net/OTA/lroom/settings.bin", "http://10.4.1.59:8080/lroom/settings.conf"};
 	uint8_t urlIndex = 0;
 	Timer timerHttp;
 
@@ -131,6 +133,7 @@ public:
 	bool is_serial = false;
 	bool is_insw = false;
 	bool is_mcp = false;
+	bool is_mhz = false;
 
 	// TIMERS
 	unsigned long shift_mqtt = 10000;
@@ -141,6 +144,7 @@ public:
 	unsigned long shift_collector = 3000;
 	unsigned long shift_receiver = 16000;
 	unsigned long shift_mcp = 12000;
+	unsigned long shift_mhz = 8000;
 	unsigned long shift_save = 500;
 
 	unsigned long interval_mqtt = 30000;
@@ -152,6 +156,7 @@ public:
 	unsigned long interval_collector = 30000;
 	unsigned long interval_receiver = 30000;
 	unsigned long interval_mcp = 30000;
+	unsigned long interval_mhz = 30000;
 
 	unsigned long debounce_time = 20;
 	unsigned long long_time = 500;

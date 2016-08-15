@@ -7,6 +7,7 @@
 #include <Module.h>
 #include <MCP.h>
 #include <SerialConnector.h>
+#include <lcd1602.h>
 
 //FTPServer ftp;
 
@@ -65,6 +66,9 @@ SensorDSS* dsSensor;
 // DHT object
 SensorDHT* dhtSensor;
 
+// MH-Z19 object
+SensorMHZ* mhz;
+
 // MCP/SwIn object
 //SwIn* mcp;
 
@@ -87,6 +91,9 @@ MQTT* mqtt;
 // AppSettings & ActStates clients
 AppSettings* appSettings;
 ActStates* actStates;
+
+// LCD init
+LCD1602* lcd;
 
 void IRAM_ATTR turnSw(byte num, bool state) {
 
@@ -372,6 +379,9 @@ void stopAllTimers(void) {
 	if (mcp != NULL)
 		mcp->stopTimer();
 
+	if (mhz != NULL)
+		mhz->stopTimer();
+
 	timerWIFI.stop();
 
 
@@ -511,6 +521,12 @@ void startTimers() {
 		DEBUG4_PRINTLN("armed");
 	}
 
+	if (mhz) {
+		DEBUG4_PRINT("mhzTimer.. ");
+		mhz->startTimer();
+		delay(50);
+		DEBUG4_PRINTLN("armed");
+	}
 
 	DEBUG4_PRINT("wifiTimer.. ");
 	timerWIFI.initializeMs(appSettings->shift_wifi, setCheckWifi).startOnce();
@@ -675,6 +691,9 @@ void checkWifi(void) {
 
 	if (mcp)
 		mcp->stopTimer();
+
+	if (mhz)
+		mhz->stopTimer();
 
 	if (serialConnector)
 		serialConnector->stopTimers();
@@ -927,6 +946,11 @@ void initModules() {
 
 		DEBUG4_PRINTF("pmqtt=\"%p\"", mqtt);
 
+		if (appSettings->is_mhz) { // Serial init
+			mhz = new SensorMHZ(*mqtt, *appSettings, &Serial);
+			lcd = new LCD1602(*appSettings);
+		}
+
 		if (appSettings->is_dht) {
 			dhtSensor = new SensorDHT(*mqtt, *appSettings);
 			//dhtSensor = new SensorDHT(appSettings->dht, DHT22, *mqtt, appSettings->shift_dht, appSettings->interval_dht);
@@ -981,8 +1005,9 @@ void init() {
 	//ets_wdt_enable();
 	//ets_wdt_disable();
 	time1 = millis();
-	Serial.begin(SERIAL_BAUD_RATE); // 115200 by default
+	Serial.begin(115200); // 115200 by default
 
+	INFO_PRINT("Firmware started + Version: ");
 	appSettings = new AppSettings();
 	actStates = new ActStates(*appSettings);
 
@@ -994,7 +1019,7 @@ void init() {
 
 
 
-	INFO_PRINT("Firmware started + Version: ");
+
 	INFO_PRINTLN(appSettings->version);
 
 	PRINT_MEM();
