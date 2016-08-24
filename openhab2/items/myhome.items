@@ -62,15 +62,20 @@ Number chldr_start           "Старт модуля Chldr"							(FF_Childroom
 /* Ванная комната */ 
 Switch Bath_light1          "Ванна. Свет 1"                                                     (FF_Bath)
 Switch Bath_light2          "Ванна. Свет 2"                                                     (FF_Bath)
-Number Bath_Temperature     "Температура [%.1f] °C"                             <temperature>   (FF_Bath)
+Number Bath_Temperature     "Температура [%.1f °C]"                             <temperature>   (FF_Bath)
 Number Bath_Humidity        "Влажность [%.1f %%]"                               <humidity>   (FF_Bath)
 
 
 /*  Большая комната  */
-Number wstat_co2				"Уровень CO2 [%d PPM]"		(GF_Livingroom)
-String wstat_log				"Лог WStat: [%s]"					(GF_Livingroom)
-Number wstat_start           "Старт модуля WStat"							(GF_Livingroom)
-Number wstat_log_mem         	"ОЗУ [%.0f байт]"                       (GF_Livingroom)
+Number wstat_co2			"Уровень CO2 [%d PPM]"							(GF_Livingroom)
+String wstat_log			"Лог WStat: [%s]"								(GF_Livingroom)
+Number wstat_start			"Старт модуля WStat"							(GF_Livingroom)
+Number wstat_log_mem		"ОЗУ [%d байт]"								(GF_Livingroom)
+Number wstat_dht_t			"Температура [%.1f °C]"		<temperature>		(GF_Livingroom)		[ "CurrentTemperature" ]
+Number wstat_dht_h			"Влажность [%.1f %%]"		<humidity>			(GF_Livingroom)		[ "CurrentHumidity" ]
+Number wstat_bmp_t			"Температура [%.1f °C]"		<temperature>		(GF_Livingroom)		[ "CurrentTemperature" ]
+Number wstat_bmp_p			"Давление [%.0f Па]"		<pressure>			(GF_Livingroom)
+
 
 
 /* Счетчики */

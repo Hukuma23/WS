@@ -24,7 +24,7 @@ sitemap myhome label="Главное меню"
 		}
 		Group item=GF_Toilet label="Туалет" icon="toilet" {
 			Switch item=toil_ssw1 icon="fan"
-			Switch item=cork_msw2 icon="fan"
+			Switch item=toil_ssw2 icon="fan"
 			Text item=toil_sdht_t
 			Text item=toil_sdht_h icon="humidity"
 			Text item=toil_sds_t0
@@ -36,6 +36,11 @@ sitemap myhome label="Главное меню"
 		}
 		Group item=GF_Livingroom label="Большая комната" icon="bedroom" {
 			Text item=wstat_co2 icon="carbondioxide" valuecolor=[wstat_co2=="NULL"="lightgray",wstat_co2<500="green",<700="yellow",<1000="black",<1500="orange",>1500="red"]
+			Text item=wstat_dht_t icon="temperature"
+			Text item=wstat_dht_h icon="humidity"
+			Text item=wstat_bmp_p icon="pressure"
+			Text item=wstat_bmp_t icon="temperature"
+			Text item=wstat_log_mem icon="cistern" valuecolor=[toil_log_mem=="NULL"="lightgray",toil_log_mem>20000="green",>15000="orange",>10000="red",<=10000="black"]
 			Text item=wstat_log icon="settings"
  		}
 	}
