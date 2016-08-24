@@ -1,0 +1,154 @@
+/* Переброска сигнала о включении/выключении вытяжки с cork_msw2 на toil_ssw2 */
+
+var Timer timerBathFan
+var Timer timerToiletFan
+
+/*  
+ * 
+ * Toilet fan rules
+ * 
+ */
+
+rule Cork_min5_Toil_ssw2
+        when
+                Item cork_min5 received update
+        then
+			logInfo("Cork_min5","*** cork_min5 = " + cork_min5)
+			sendCommand(toil_ssw2, cork_min5.state.toString())
+			
+			if(timerToiletFan != null) {
+		    	timerToiletFan.cancel
+        		timerToiletFan = null
+       		}   
+end
+
+rule Cork_mil5_Toil_ssw2
+        when
+                Item cork_mil5 received update
+        then
+			logInfo("Cork_mil5","cork_mil5 = " + cork_mil5)
+			
+			if(cork_mil5.state == ON) {
+				val minutes = (Toilet_fan_delay.state as DecimalType).intValue
+				logInfo("Cork_mil5","cork_mil5.state == ON")
+        		if(timerToiletFan==null) {
+        			logInfo("*** Cork_mil5","Timer armed for " + minutes + " minutes")
+            		// first ON command, so create a timer to turn the light off again
+            		
+            		timerToiletFan = createTimer(now.plusMinutes(minutes)) [|
+            			logInfo("*** timerToiletFan *** ","Timer done!")
+                		sendCommand(cork_msw5, OFF)
+            		]
+        		} else {
+        			logInfo("*** Cork_mil5","Timer reArmed for " + minutes + " minutes")
+            		// subsequent ON command, so reschedule the existing timer
+            		timerToiletFan.reschedule(now.plusMinutes(minutes))
+        		}
+    		} else if(cork_mil5.state == OFF) {
+    			logInfo("Cork_mil5","cork_mil5.state == OFF")
+        		// remove any previously scheduled timer
+        		if(timerToiletFan!=null) {
+        			logInfo("*** Cork_mil5","Timer disarmed!")
+		            timerToiletFan.cancel
+        		    timerToiletFan = null
+        		}   
+    		}        
+			sendCommand(cork_msw5, cork_mil5.state.toString()) // заменил toil_ssw2 на cork_msw5
+end
+
+rule Cork_msw5_Toil_ssw2
+        when
+                Item cork_msw5 received command
+        then
+        
+        	logInfo("Cork_msw5","*** cork_msw5 = " + cork_msw5)
+			if(receivedCommand == OFF) {
+        		// remove any previously scheduled timer
+        		if(timerToiletFan!=null) {
+		            timerToiletFan.cancel
+        		    timerToiletFan = null
+        		}   
+    		} 
+           	sendCommand(toil_ssw2, cork_msw5.state.toString())
+			
+end
+/* 
+rule Toil_ssw2
+        when
+                Item toil_ssw2 received update
+        then  
+        	logInfo("Toil_ssw2","*** toil_ssw2 = " + toil_ssw2)
+			if(toil_ssw2.state != cork_msw5.state) {
+				sendCommand(toil_ssw2, cork_msw5.state.toString())
+    		} 
+end
+*/
+
+/*  
+ * 
+ * Bath fan rules
+ * 
+ */
+ 
+ rule Cork_min2_Toil_ssw1
+        when
+                Item cork_min2 received update
+        then
+			logInfo("Cork_min2","*** cork_min2 = " + cork_min2)
+			sendCommand(toil_ssw1, cork_min2.state.toString())
+			
+			if(timerBathFan != null) {
+		    	timerBathFan.cancel
+        		timerBathFan = null
+       		}   
+end
+
+rule Cork_mil2_Toil_ssw1
+        when
+                Item cork_mil2 received update
+        then
+			logInfo("Cork_mil2","cork_mil2 = " + cork_mil2)
+			
+			if(cork_mil2.state == ON) {
+				logInfo("Cork_mil2","cork_mil2.state == ON")
+        		val minutes = (Bath_fan_delay.state as DecimalType).intValue
+        		if(timerBathFan==null) {
+        			logInfo("*** Cork_mil2","Timer armed for " + minutes + " minutes")
+            		// first ON command, so create a timer to turn the light off again
+            		timerBathFan = createTimer(now.plusMinutes(minutes)) [|
+            			logInfo("*** timerBathFan *** ","Timer done!")
+                		sendCommand(cork_msw2, OFF)
+            		]
+        		} else {
+        			logInfo("*** Cork_mil2","Timer reArmed for " + minutes + " minutes")
+            		// subsequent ON command, so reschedule the existing timer
+            		timerBathFan.reschedule(now.plusMinutes(minutes))
+        		}
+    		} else if(cork_mil2.state == OFF) {
+    			logInfo("Cork_mil2","cork_mil2.state == OFF")
+        		// remove any previously scheduled timer
+        		if(timerBathFan!=null) {
+        			logInfo("*** Cork_mil2","Timer disarmed!")
+		            timerBathFan.cancel
+        		    timerBathFan = null
+        		}   
+    		}        
+			sendCommand(cork_msw2, cork_mil2.state.toString())
+end
+
+rule Cork_msw2_Toil_ssw1
+        when
+                Item cork_msw2 received command
+        then
+        
+        	logInfo("Cork_msw2","*** cork_msw2 = " + cork_msw2)
+			if(receivedCommand == OFF) {
+        		// remove any previously scheduled timer
+        		if(timerBathFan!=null) {
+		            timerBathFan.cancel
+        		    timerBathFan = null
+        		}   
+    		} 
+           	sendCommand(toil_ssw1, cork_msw2.state.toString())
+			
+end

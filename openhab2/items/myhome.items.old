@@ -1,0 +1,82 @@
+/*Group gFF           "Наша квартира"   <firstfloor>*/
+Group Weather       "Weather"       <sun>
+
+/*
+Group FF_Bath       "Ванная комната"      <bath>      (gFF)
+Group FF_Corridor   "Коридор"             <corridor>  (gFF)
+Group GF_Toilet     "Туалет"              <bath>      (gFF)
+*/
+
+/* active groups
+Group:Switch:OR(ON, OFF)        Lights      "All Lights [(%d)]"
+Group:Number:AVG                Temperature "Avg. Room Temperature [%.1f °C]"   <temperature>   (Status)
+*/
+
+/* Туалет */
+Switch toil_ssw1         "Пустое реле (реле 1)"                              <fan>           (GF_Toilet)
+Switch toil_ssw2         "Вытяжка в туалете (реле 2)"                        <fan>           //(GF_Toilet)
+Number toil_sdht_t       "Температура [%.1f °C]"                             <temperature>   (GF_Toilet)
+Number toil_sdht_h       "Влажность [%.1f %%]"                               <temperature>   (GF_Toilet)
+Number toil_sds_t0       "Температура стояка с холодной водой [%.1f °C]"     <temperature>   (GF_Toilet)
+Number toil_sds_t1       "Температура стояка с горячей водой [%.1f °C]"      <temperature>   (GF_Toilet)
+Number toil_s_wc         "Расход холодной воды [%d x10 литров]"              <water>   (GF_Toilet)
+Number toil_s_wh         "Расход горячей воды [%d x10 литров]"                <water>  (GF_Toilet)
+Number toil_VCC          "Напряжение питания [%d мВ]"                           (GF_Toilet)
+Number toil_log_mem		 "ОЗУ [%.0f байт]"                                      (GF_Toilet)
+
+/* Коридор */
+Switch cork_msw1            "Свет в ванной (кнопка 1)"						<light>		(FF_Corridor, FF_Bath)
+Switch cork_min1			"Кнопка 1 (короткое нажатие)"
+Switch cork_mil1			"Кнопка 1 (продолжительное нажатие)"
+
+Switch cork_msw2            "Вытяжка в ванной (кнопка 2)"					<fan>		(FF_Corridor, FF_Bath)
+Switch cork_min2			"Кнопка 2 (короткое нажатие)"
+Switch cork_mil2			"Кнопка 2 (продолжительное нажатие)"
+
+Switch cork_msw3            "Свет на кухне (кнопка 3)"						<light>		(FF_Corridor)
+Switch cork_min3			"Кнопка 3 (короткое нажатие)"
+Switch cork_mil3			"Кнопка 3 (продолжительное нажатие)"
+
+Switch cork_msw4            "Свет в туалете (кнопка 4)"						<light>		(FF_Corridor, GF_Toilet)
+Switch cork_min4			"Кнопка 4 (короткое нажатие)"
+Switch cork_mil4			"Кнопка 4 (продолжительное нажатие)"
+
+Switch cork_msw5            "Вытяжка в туалете (кнопка 5)"					<fan>		(FF_Corridor, GF_Toilet)
+Switch cork_min5			"Кнопка 5 (короткое нажатие)"
+Switch cork_mil5			"Кнопка 5 (продолжительное нажатие)"
+
+Number cork_ds_t0           "Температура [%.1f °C]"	                            <temperature>   (FF_Corridor)
+Number cork_log_mem         "ОЗУ [%.0f байт]"                                      (FF_Corridor)
+Number cork_start           "Старт модуля"       (FF_Corridor)
+
+/* Ванная комната */ 
+Switch Bath_light1          "Ванна. Свет 1"                                                     (FF_Bath)
+Switch Bath_light2          "Ванна. Свет 2"                                                     (FF_Bath)
+Number Bath_Temperature     "Температура [%.1f °C]"                             <temperature>   (FF_Bath)
+Number Bath_Humidity        "Влажность [%.1f %%]"                               <temperature>   (FF_Bath)
+
+
+/* Счетчики */
+Number PC_KitchenLight				"Сегодня. Кухня: Свет [%.1f Ватт*час]"				(PCounters)
+Number PC_KitchenLight_yesterday	"Вчера. Кухня: Свет [%.1f Ватт*час]"				(PCounters)
+
+Number PC_ToiletFan					"Сегодня. Туалет: Вентилятор [%.1f Ватт*час]"		(PCounters)
+Number PC_ToiletFan_yesterday		"Вчера. Туалет: Вентилятор [%.1f Ватт*час]"			(PCounters)
+
+Number PC_ToiletLight				"Сегодня. Туалет: Свет [%.1f Ватт*час]"				(PCounters)
+Number PC_ToiletLight_yesterday		"Вчера. Туалет: Свет [%.1f Ватт*час]"				(PCounters)
+
+Number PC_BathFan					"Сегодня. Ванная: Вентилятор [%.1f Ватт*час]"		(PCounters)
+Number PC_BathFan_yesterday			"Вчера. Ванная: Вентилятор [%.1f Ватт*час]"			(PCounters)
+
+Number PC_BathLight					"Сегодня. Ванная: Свет [%.1f Ватт*час]"				(PCounters)
+Number PC_BathLight_yesterday		"Вчера. Ванная: Свет [%.1f Ватт*час]"				(PCounters)
+
+
+Group Weather_Chart
+Number Weather_Temperature      "Outside Temperature [%.1f °C]" <temperature> (Weather, Weather_Chart) { channel="yahooweather:weather:moscow:temperature" }
+Number Weather_Temp_Max         "Todays Maximum [%.1f °C]"      <temperature> (Weather, Weather_Chart)
+Number Weather_Temp_Min         "Todays Minimum [%.1f °C]"      <temperature> (Weather, Weather_Chart)
+Number Weather_Chart_Period     "Chart Period"
+DateTime Weather_LastUpdate     "Last Update [%1$ta %1$tR]" <clock>
+Number  Sun_Elevation           "Sun Elevation"             <sun>        (Weather)   { channel="astro:sun:home:position#elevation" }

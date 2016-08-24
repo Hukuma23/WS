@@ -1,0 +1,3 @@
+/* Настройки */
+Number Toilet_fan_delay		"Время работы вытяжки в Туалете [%d минут]"				(OHConfig)
+Number Bath_fan_delay		"Время работы вытяжки в Ванной [%d минут]"				(OHConfig)

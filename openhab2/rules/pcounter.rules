@@ -1,0 +1,218 @@
+/* Правила учета потребленного электричества */
+
+import java.util.Calendar
+
+
+/* c - Counter, количество секунд */
+var Number cKchnLight = 0
+var Number cToilFan = 0
+var Number cToilLight = 0
+var Number cBathLight = 0
+var Number cBathFan = 0
+
+/* p - Power, мощность прибора Ватт */
+val Number pKchnLight = 26
+val Number pToilFan = 16
+var Number pToilLight = 10
+var Number pBathLight = 20
+var Number pBathFan = 16
+
+/* i - Indicator, индикатор того, что идет счет */
+var Number iKchnLight = 0
+var Number iToilFan = 0
+var Number iToilLight = 0
+var Number iBathLight = 0
+var Number iBathFan = 0
+
+/* s - Start, время начала отсчета */
+var sKchnLight = Calendar.getInstance().getTimeInMillis()
+var sToilFan = Calendar.getInstance().getTimeInMillis()
+var sToilLight = Calendar.getInstance().getTimeInMillis()
+var sBathLight = Calendar.getInstance().getTimeInMillis()
+var sBathFan = Calendar.getInstance().getTimeInMillis()
+
+
+/* d - Today, y - Yesterday, счетчики за сегодня и за вчера */
+var Number dKchnLight
+var Number yKchnLight
+
+var Number dToilFan
+var Number yToilFan
+
+var Number dToilLight
+var Number yToilLight
+
+var Number dBathLight
+var Number yBathLight
+
+var Number dBathFan
+var Number yBathFan
+
+
+rule PowerCounter_KchnLight
+	when
+		Item cork_msw3 received update
+	then
+		if ((cork_msw3.state == ON) && (iKchnLight == 0)) {
+			iKchnLight = 1;
+			sKchnLight = Calendar.getInstance().getTimeInMillis()
+		}
+		else if ((cork_msw3.state == OFF) && (iKchnLight == 1)) {
+			iKchnLight = 0;
+			cKchnLight = ((Calendar.getInstance().getTimeInMillis() - sKchnLight)/1000) + cKchnLight
+		}
+end		
+
+rule PowerCounter_ToilFan
+	when
+		Item cork_msw5 received update
+	then
+		if ((cork_msw5.state == ON) && (iToilFan == 0)) {
+			iToilFan = 1;
+			sToilFan = Calendar.getInstance().getTimeInMillis()
+		}
+		else if ((cork_msw5.state == OFF) && (iToilFan == 1)) {
+			iToilFan = 0;
+			cToilFan = ((Calendar.getInstance().getTimeInMillis() - sToilFan)/1000) + cToilFan
+		}
+end	
+
+rule PowerCounter_ToilLight
+	when
+		Item cork_msw4 received update
+	then
+		if ((cork_msw4.state == ON) && (iToilLight == 0)) {
+			iToilLight = 1;
+			sToilLight = Calendar.getInstance().getTimeInMillis()
+		}
+		else if ((cork_msw4.state == OFF) && (iToilLight == 1)) {
+			iToilLight = 0;
+			cToilLight = ((Calendar.getInstance().getTimeInMillis() - sToilLight)/1000) + cToilLight
+		}
+end	
+
+rule PowerCounter_BathFan
+	when
+		Item cork_msw2 received update
+	then
+		if ((cork_msw2.state == ON) && (iBathFan == 0)) {
+			iBathFan = 1;
+			sBathFan = Calendar.getInstance().getTimeInMillis()
+		}
+		else if ((cork_msw2.state == OFF) && (iBathFan == 1)) {
+			iBathFan = 0;
+			cBathFan = ((Calendar.getInstance().getTimeInMillis() - sBathFan)/1000) + cBathFan
+		}
+end	
+
+rule PowerCounter_BathLight
+	when
+		Item cork_msw1 received update
+	then
+		if ((cork_msw1.state == ON) && (iBathLight == 0)) {
+			iBathLight = 1;
+			sBathLight = Calendar.getInstance().getTimeInMillis()
+		}
+		else if ((cork_msw1.state == OFF) && (iBathLight == 1)) {
+			iBathLight = 0;
+			cBathLight = ((Calendar.getInstance().getTimeInMillis() - sBathLight)/1000) + cBathLight
+		}
+end	
+
+rule PowerCounterPublish
+	when
+		Time cron "0 0/10 * 1/1 * ? *"	// Каждые 10 минут  
+		//"0 0 0/1 1/1 * ? *"	// каждый час
+	then
+		if (iKchnLight == 1) {
+			cKchnLight = ((Calendar.getInstance().getTimeInMillis() - sKchnLight)/1000) + cKchnLight
+			sKchnLight = Calendar.getInstance().getTimeInMillis()
+		}
+		
+		if (iToilFan == 1) {
+			cToilFan = ((Calendar.getInstance().getTimeInMillis() - sToilFan)/1000) + cToilFan
+			sToilFan = Calendar.getInstance().getTimeInMillis()
+		}
+		
+		if (iToilLight == 1) {
+			cToilLight = ((Calendar.getInstance().getTimeInMillis() - sToilLight)/1000) + cToilLight
+			sToilLight = Calendar.getInstance().getTimeInMillis()
+		}
+
+		if (iBathFan == 1) {
+			cBathFan = ((Calendar.getInstance().getTimeInMillis() - sBathFan)/1000) + cBathFan
+			sBathFan = Calendar.getInstance().getTimeInMillis()
+		}
+		
+		if (iBathLight == 1) {
+			cBathLight = ((Calendar.getInstance().getTimeInMillis() - sBathLight)/1000) + cBathLight
+			sBathLight = Calendar.getInstance().getTimeInMillis()
+		}
+
+
+		var Number rKchnLight = ((pKchnLight * cKchnLight)/3600)
+		var Number rToilFan = ((pToilFan * cToilFan)/3600)
+		var Number rToilLight = ((pToilLight * cToilLight)/3600)
+		var Number rBathFan = ((pBathFan * cBathFan)/3600)
+		var Number rBathLight = ((pBathLight * cBathLight)/3600)
+		
+		
+		sendHttpGetRequest("http://api.thingspeak.com/update?key=P0PKK1LFVHV9Z931" 
+			+ "&field1=" + rKchnLight.toString()
+		    + "&field2=" + rToilFan.toString()
+		    + "&field3=" + rToilLight.toString()
+		    + "&field4=" + rBathFan.toString()
+		    + "&field5=" + rBathLight.toString()		    
+		)
+		
+		dKchnLight = rKchnLight + dKchnLight
+		dToilFan = rToilFan + dToilFan
+		dToilLight = rToilLight + dToilLight
+		dBathFan = rBathFan + dBathFan
+		dBathLight = rBathLight + dBathLight
+		
+		postUpdate(PC_KitchenLight, dKchnLight)
+		postUpdate(PC_ToiletFan, dToilFan)
+		postUpdate(PC_ToiletLight, dToilLight)
+		postUpdate(PC_BathFan, dBathFan)
+		postUpdate(PC_BathLight, dBathLight)	
+		
+		cKchnLight = 0
+		cToilFan = 0
+		cToilLight = 0
+		cBathFan = 0
+		cBathLight = 0	
+			
+end
+
+rule PowerCounterTodayToYesterday
+	when
+		Time cron "0 0 0 1/1 * ? *"	// Каждые сутки  
+	then
+		yKchnLight = dKchnLight
+		yToilFan = dToilFan
+		yToilLight = dToilLight
+		yBathFan = dBathFan
+		yBathLight = dBathLight
+		
+		dKchnLight = 0
+		dToilFan = 0
+		dToilLight = 0
+		dBathFan = 0
+		dBathLight = 0
+		
+		
+		postUpdate(PC_KitchenLight, dKchnLight)
+		postUpdate(PC_KitchenLight_yesterday, yKchnLight)
+		postUpdate(PC_ToiletFan, dToilFan)
+		postUpdate(PC_ToiletFan_yesterday, yToilFan)	
+		
+		postUpdate(PC_ToiletLight, dToilLight)
+		postUpdate(PC_ToiletLight_yesterday, yToilLight)	
+		
+		postUpdate(PC_BathFan, dBathFan)
+		postUpdate(PC_BathFan_yesterday, yBathFan)
+		
+		postUpdate(PC_BathLight, dBathLight)
+		postUpdate(PC_BathLight_yesterday, yBathLight)
+end

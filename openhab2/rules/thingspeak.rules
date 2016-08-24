@@ -1,0 +1,217 @@
+val undef = -127
+
+// MH-Z19 vars
+var l_wstat_log_mem = undef
+var l_wstat_co2 = undef
+var l_wstat_dht = undef
+var l_wstat_bmp = undef
+
+
+
+/*  –ü—Ä–∞–≤–∏–ª–∞ –ø—É–±–ª–∏–∫–∞—Ü–∏–∏ –¥–ª—è MH-Z19 */
+rule WStat_start_publish_thingspeak
+        when
+                Item wstat_start changed to 1
+        then
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=FYPWUOD5KR6CBF2N" 
+                	+ "&field1=" + wstat_start.state.toString() 
+                )
+		pushover(wstat_start.label,0)
+		postUpdate(wstat_start, "0")
+end
+
+rule WStat_publish_thingspeak
+	when
+		Time cron "	0 0/1 * 1/1 * ? *"
+	then
+		var strRequest = "http://api.thingspeak.com/update?key=FYPWUOD5KR6CBF2N" + "&field1=" + wstat_start.state.toString()
+		
+		 
+		if ((l_wstat_log_mem != null) && (l_wstat_log_mem != undef)) { strRequest += "&field2=" + wstat_log_mem.state.toString(); l_wstat_log_mem = undef }
+		
+		if ((l_wstat_co2 != null) && (l_wstat_co2 != undef)) { strRequest += "&field3=" + wstat_co2.state.toString(); l_wstat_co2 = undef }
+		if ((l_wstat_dht != null) && (l_wstat_dht != undef)) { strRequest += "&field4=" + wstat_dht_t.state.toString() + "&field5=" + wstat_dht_h.state.toString(); l_wstat_dht = undef	}
+		if ((l_wstat_bmp != null) && (l_wstat_bmp != undef)) { strRequest += "&field6=" + wstat_bmp_t.state.toString() + "&field7=" + wstat_bmp_p.state.toString();	l_wstat_bmp = undef }
+
+		sendHttpGetRequest(strRequest)
+		//logInfo("WStat_publish_thingspeak",strRequest)
+
+end
+
+rule WStat_log_publish_thingspeak
+        when
+                Item wstat_log_mem received update
+        then
+				l_wstat_log_mem = 1;
+				/*sendHttpGetRequest("http://api.thingspeak.com/update?key=FYPWUOD5KR6CBF2N" 
+                	+ "&field1=" + wstat_start.state.toString()
+                	+ "&field2=" + wstat_log_mem.state.toString()
+                )*/
+end
+
+rule WStat_dht_publish_thingspeak
+        when
+                Item wstat_dht_h received update
+        then
+        		l_wstat_dht = 1;
+                /*sendHttpGetRequest("http://api.thingspeak.com/update?key=FYPWUOD5KR6CBF2N" 
+                	+ "&field4=" + wstat_dht_t.state.toString()
+                	+ "&field5=" + wstat_dht_h.state.toString()
+                )*/
+end
+
+rule WStat_bmp_publish_thingspeak
+        when
+                Item wstat_bmp_p received update
+        then
+        		l_wstat_bmp = 1;
+                /*sendHttpGetRequest("http://api.thingspeak.com/update?key=FYPWUOD5KR6CBF2N" 
+                	+ "&field6=" + wstat_bmp_t.state.toString()
+                	+ "&field7=" + wstat_bmp_p.state.toString()
+                )*/
+end
+
+rule WStat_co2_publish_thingspeak
+        when
+                Item wstat_co2 received update
+        then
+        		l_wstat_co2 = 1;
+                /*sendHttpGetRequest("http://api.thingspeak.com/update?key=FYPWUOD5KR6CBF2N" 
+                	+ "&field3=" + wstat_co2.state.toString()
+                )*/
+end
+
+
+
+
+
+/* –ü—Ä–∞–≤–∏–ª–∞ –ª–æ–≥–∏—Ä–æ–≤–∞–Ω–∏—è –Ω–∞ Thingspeak –¥–ª—è CORK */
+rule Cork_start_publish_thingspeak
+        when
+                Item cork_start changed to 1
+        then
+  		
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=6L7ED5709NI5S324" 
+                	+ "&field1=" + cork_start.state.toString() 
+                )
+		pushover(cork_start.label,0)
+		postUpdate(cork_start, "0")
+end
+
+rule Cork_temp_publish_thingspeak
+        when
+                Item cork_log_mem received update
+        then
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=6L7ED5709NI5S324" 
+                	+ "&field1=" + cork_start.state.toString()
+                	+ "&field2=" + cork_ds_t0.state.toString()
+                	+ "&field3=" + cork_log_mem.state.toString()
+                )
+end
+
+rule Cork_mcp_publish_thingspeak
+        when
+                Item cork_msw2 received update
+        then
+		sendHttpGetRequest("http://api.thingspeak.com/update?key=5KIE2MSG74W3KELF" 
+                	+ "&field1=" + cork_msw1.state.toString() 
+                	+ "&field2=" + cork_msw2.state.toString()
+                )
+end
+
+
+/* œ‡‚ËÎ‡ ÎÓ„ËÓ‚‡ÌËˇ Ì‡ Thingspeak ‰Îˇ CHLDR */
+rule Chldr_start_publish_thingspeak
+        when
+                Item chldr_start changed to 1
+        then
+  		
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=PZ6QVXAPF4S0QCIT" 
+                	+ "&field1=" + chldr_start.state.toString() 
+                )
+		pushover(chldr_start.label,0)
+		postUpdate(chldr_start, "0")
+end
+
+rule Chldr_temp_publish_thingspeak
+        when
+                Item chldr_log_mem received update
+        then
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=PZ6QVXAPF4S0QCIT" 
+                	+ "&field1=" + chldr_start.state.toString()
+                	+ "&field2=" + chldr_ds_t0.state.toString()
+                	+ "&field3=" + chldr_log_mem.state.toString()
+                )
+end
+
+rule Chldr_sw1_publish_thingspeak
+        when
+                Item chldr_sw1 received update
+        then
+		sendHttpGetRequest("http://api.thingspeak.com/update?key=PZ6QVXAPF4S0QCIT" 
+                	+ "&field4=" + chldr_sw1.state.toString()
+                )
+end
+
+
+
+rule Toil_start_publish_thingspeak
+        when
+                Item toil_start changed to 1
+        then
+  		
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=QDTZY2ROPDPIVNU5" 
+                	+ "&field8=" + toil_start.state.toString() 
+                )
+		pushover(toil_start.label,0)
+		postUpdate(toil_start, "0")
+end
+
+rule Toil_publish_thingspeak
+        when
+                Item toil_sds_t1 received update
+        then
+        
+        		var Number ssw1 = 0
+        		var Number ssw2 = 0
+                
+                if (toil_ssw1.state == ON) ssw1 = 1 else ssw1 = 0
+                if (toil_ssw2.state == ON) ssw2 = 1 else ssw2 = 0
+                
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=QDTZY2ROPDPIVNU5" 
+                	+ "&field1=" + toil_sdht_t.state.toString() 
+                	+ "&field2=" + toil_sdht_h.state.toString()
+                	+ "&field3=" + toil_sds_t1.state.toString()
+                	+ "&field4=" + toil_sds_t0.state.toString()
+                	+ "&field5=" + toil_s_wh.state.toString()
+                	+ "&field6=" + toil_s_wc.state.toString()
+                	+ "&field7=" + toil_log_mem.state.toString()                	
+                )
+               	toil_s_wc.postUpdate(0)
+               	toil_s_wh.postUpdate(0)            	
+end
+
+rule Toil_ssw_publish_thingspeak
+        when
+                Item toil_ssw2 received update
+        then
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=H6UMBA4OFE6UJD4Z" 
+                	+ "&field1=" + toil_ssw1.state.toString()
+                	+ "&field2=" + toil_ssw2.state.toString()
+                )
+end
+
+
+/*
+rule Bath_publish_thingspeak
+        when
+                Item Bath_Humidity received update
+        then
+                sendHttpGetRequest("http://api.thingspeak.com/update?key=60OUDNLUREPCWRXD" 
+                	+ "&field1=" + Bath_Temperature.state.toString() 
+                	+ "&field2=" + Bath_Humidity.state.toString()
+                )
+end
+
+*/
+

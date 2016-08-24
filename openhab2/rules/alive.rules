@@ -1,0 +1,51 @@
+/* Правила проверки функционирования модулей */
+
+// Minutes to Alert - количество минут в течение которого не подает признаков жизни модуль до срабатывания триггера 
+val minToAlert = 3
+
+/* at - Alive Timer, таймер для проверки функционирования модулей */
+var Timer atCork = null
+var Timer atToil = null
+var Timer atWStat = null
+
+rule Cork_aliveCheck 
+	when
+    	Item cork_msw1 received command
+	then
+		if(atCork==null) {
+	    	atCork = createTimer(now.plusMinutes(minToAlert)) [|
+    	    	pushover("Внимание, модуль Cork перестал отвечать!", 2)
+			]
+		} else {
+    		// subsequent ON command, so reschedule the existing timer
+        	atCork.reschedule(now.plusMinutes(minToAlert))
+		}
+end
+
+rule Toil_aliveCheck 
+	when
+    	Item toil_ssw1 received command
+	then
+		if(atToil==null) {
+	    	atToil = createTimer(now.plusMinutes(minToAlert)) [|
+    	    	pushover("Внимание, модуль Toil перестал отвечать!", 2)
+			]
+		} else {
+    		// subsequent ON command, so reschedule the existing timer
+        	atToil.reschedule(now.plusMinutes(minToAlert))
+		}
+end
+
+rule WStat_aliveCheck 
+	when
+    	Item wstat_log_mem received command
+	then
+		if(atWStat==null) {
+	    	atWStat = createTimer(now.plusMinutes(minToAlert)) [|
+    	    	pushover("Внимание, модуль WStat перестал отвечать!", 2)
+			]
+		} else {
+    		// subsequent ON command, so reschedule the existing timer
+        	atWStat.reschedule(now.plusMinutes(minToAlert))
+		}
+end

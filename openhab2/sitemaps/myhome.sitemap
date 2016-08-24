@@ -1,0 +1,79 @@
+sitemap myhome label="Главное меню"
+{
+	Frame label="Наша квартира" {
+		/*Group item=gFF label="Наша квартира" icon="firstfloor"*/
+		Group item=FF_Bath label="Ванная комната" icon="bath" {
+			Switch item=Bath_light1 icon="fan"
+			Switch item=Bath_light2 icon="fan"
+			Text item=Bath_Temperature
+			Text item=Bath_Humidity icon="humidity"
+		}
+		Group item=FF_Corridor label="Коридор" icon="corridor" {
+			Switch item=cork_msw1 icon="light"
+			Switch item=cork_msw2 icon="fan"
+			Switch item=cork_msw3 icon="light"
+			Switch item=cork_msw4 icon="light"
+			Switch item=cork_msw5 icon="fan"
+			Text item=cork_ds_t0 valuecolor=[cork_ds_t0=="NULL"="lightgray",cork_ds_t0>33="red",>30="orange",>21="green",<=21="blue"]
+			Text item=cork_log_mem icon="cistern" valuecolor=[cork_log_mem=="NULL"="lightgray",cork_log_mem>20000="green",>15000="orange",>10000="red",<=10000="black"]
+		}
+		Group item=FF_Childroom label="Детская комната" icon="bedroom" {
+			Switch item=chldr_sw1 icon="light"
+			Text item=chldr_ds_t0 valuecolor=[chldr_ds_t0=="NULL"="lightgray",chldr_ds_t0>33="red",>30="orange",>21="green",<=21="blue"]
+			Text item=chldr_log_mem icon="cistern" valuecolor=[chldr_log_mem=="NULL"="lightgray",chldr_log_mem>20000="green",>15000="orange",>10000="red",<=10000="black"]
+		}
+		Group item=GF_Toilet label="Туалет" icon="toilet" {
+			Switch item=toil_ssw1 icon="fan"
+			Switch item=cork_msw2 icon="fan"
+			Text item=toil_sdht_t
+			Text item=toil_sdht_h icon="humidity"
+			Text item=toil_sds_t0
+			Text item=toil_sds_t1
+			Text item=toil_s_wc icon="water"
+			Text item=toil_s_wh icon="water"
+			Text item=toil_VCC icon="battery"
+			Text item=toil_log_mem icon="cistern" valuecolor=[toil_log_mem=="NULL"="lightgray",toil_log_mem>20000="green",>15000="orange",>10000="red",<=10000="black"]
+		}
+		Group item=GF_Livingroom label="Большая комната" icon="bedroom" {
+			Text item=wstat_co2 icon="carbondioxide" valuecolor=[wstat_co2=="NULL"="lightgray",wstat_co2<500="green",<700="yellow",<1000="black",<1500="orange",>1500="red"]
+			Text item=wstat_log icon="settings"
+ 		}
+	}
+	Frame label="Счетчики" {
+		Group item=PCounters label="Счетчики электроэнергии" icon="line" {
+			Text item=PC_KitchenLight icon="light"
+			Text item=PC_BathLight icon="light"
+			Text item=PC_ToiletLight icon="light"
+			Text item=PC_BathFan icon="fan"
+			Text item=PC_ToiletFan icon="fan"
+			
+			Text item=PC_KitchenLight_yesterday icon="light"
+			Text item=PC_BathLight_yesterday icon="light"
+			Text item=PC_ToiletLight_yesterday icon="light"
+			Text item=PC_BathFan_yesterday icon="fan"
+			Text item=PC_ToiletFan_yesterday icon="fan"
+		}
+	}
+	Frame label="Настройки" {
+		Group item=OHConfig label="Настройки" icon="settings" {
+			Setpoint item=Toilet_fan_delay label="Время работы вытяжки в Туалете [%d минут]" icon="calendar" minValue=1 maxValue=30 step=1
+			Setpoint item=Bath_fan_delay label="Время работы вытяжки в Ванной [%d минут]" icon="calendar" minValue=1 maxValue=30 step=1
+		}
+	}
+	Frame label="Weather" {
+		Text item=Sun_Elevation
+		Text item=Weather_Temperature valuecolor=[Weather_LastUpdate=="NULL"="lightgray",Weather_LastUpdate>90="lightgray",>25="orange",>15="green",>5="orange",<=5="blue"] {
+			Frame {
+				Text item=Weather_Temp_Max valuecolor=[>25="orange",>15="green",>5="orange",<=5="blue"]
+				Text item=Weather_Temp_Min valuecolor=[>25="orange",>15="green",>5="orange",<=5="blue"]
+				Text item=Weather_LastUpdate visibility=[Weather_LastUpdate>30] valuecolor=[Weather_LastUpdate>120="orange", Weather_LastUpdate>300="red"]
+			}
+			Frame {
+				Switch item=Weather_Chart_Period label="Chart Period" mappings=[0="Hour", 1="Day", 2="Week"]
+				Chart item=Weather_Chart period=h refresh=600 visibility=[Weather_Chart_Period==0, Weather_Chart_Period=="NULL"]
+				Chart item=Weather_Chart period=D refresh=3600 visibility=[Weather_Chart_Period==1]
+				Chart item=Weather_Chart period=W refresh=3600 visibility=[Weather_Chart_Period==2]
+			}
+		}
+	}
+}

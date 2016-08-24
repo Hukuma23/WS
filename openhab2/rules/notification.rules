@@ -1,0 +1,28 @@
+var isHot = true
+
+/* Правило отправки уведомления Pushover при включении cork_msw1 */
+rule Cork_msw1_pushover
+		when   
+        		Item cork_msw1 changed from OFF to ON
+		then   
+   	    		pushover(cork_msw1.label + " включен",-1)
+end
+
+
+/* Правило проверки наличия горячей воды и уведомления Pushover при ее отсутствии/возвращении */
+rule Cork_msw1_pushover
+		when   
+        		Item toil_sds_t1 changed
+		then   
+   	    		val tempHotWater = (toil_sds_t1.state as DecimalType).floatValue
+   	    		if ((isHot = true) && (tempHotWater < 30.0)) {
+   	    			isHot = false
+   	    			pushover("Горячей воды нет! Температура стояка с горячей водой ниже 30°C",2)
+   	    		}
+   	    		else if ((isHot = false) && (tempHotWater > 33.0)) {
+   	    			isHot = true
+   	    			pushover("Горячая вода есть! Температура стояка с горячей водой выше 33°C",2)
+   	    		}
+end
+
+
