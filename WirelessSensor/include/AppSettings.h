@@ -84,11 +84,16 @@ public:
 	String topMHZ;
 
 	String topSW;
+	String topIN = "in";
+	String topIN_L = "in_l";
+
 	String topSSW;
 
 	String topMSW;
 	String topMIN;
 	String topMIN_L;
+
+
 
 	String topWater_h;
 	String topWater_c;
@@ -120,7 +125,7 @@ public:
 
 	// HTTP
 	HttpClient httpClient;
-	String urlFW[3] = {"http://10.0.1.22:8088/OTA/lroom/settings.conf", "http://nlpi.azurewebsites.net/OTA/lroom/settings.bin", "http://10.4.1.59:8080/lroom/settings.conf"};
+	String urlFW[3] = {"http://10.0.1.22:8088/OTA/chldr/settings.conf", "http://nlpi.azurewebsites.net/OTA/chldr/settings.bin", "http://10.4.1.59:8080/chldr/settings.conf"};
 	uint8_t urlIndex = 0;
 	Timer timerHttp;
 

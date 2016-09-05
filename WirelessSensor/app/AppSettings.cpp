@@ -162,6 +162,9 @@
 		topMHZ = (const char*)mqtt["mhz"];
 
 		topSW = (const char*)mqtt["sw"];
+		topIN = (const char*)mqtt["in"];
+		topIN_L = (const char*)mqtt["in_l"];
+
 		topSSW = (const char*)mqtt["ssw"];
 
 		topMSW = (const char*)mqtt["msw"];
@@ -499,6 +502,9 @@
 		mqtt_topic["mhz"] = topMHZ.c_str();
 
 		mqtt_topic["sw"] = topSW.c_str();
+		mqtt_topic["in"] = topIN.c_str();
+		mqtt_topic["in_l"] = topIN_L.c_str();
+
 		mqtt_topic["ssw"] = topSSW.c_str();
 
 		mqtt_topic["msw"] = topMSW.c_str();
@@ -657,6 +663,9 @@
 		mqtt["mhz"] = topMHZ.c_str();
 
 		mqtt["sw"] = topSW.c_str();
+		mqtt_topic["in"] = topIN.c_str();
+		mqtt_topic["in_l"] = topIN_L.c_str();
+
 		mqtt["ssw"] = topSSW.c_str();
 
 		mqtt["msw"] = topMSW.c_str();
