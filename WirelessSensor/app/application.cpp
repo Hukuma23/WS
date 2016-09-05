@@ -9,6 +9,9 @@
 #include <SerialConnector.h>
 #include <lcd1602.h>
 
+
+#define DEBOUNCE_TTIME 	20
+
 //FTPServer ftp;
 
 //extern void wdt_feed (void);
@@ -24,6 +27,12 @@ void stopAllTimers();
 String ShowInfo();
 void initModules();
 
+void  interruptHandlerInSw1();
+void  interruptHandlerInSw2();
+void  interruptHandlerInSw3();
+void  interruptHandlerInSw4();
+void  interruptHandlerInSw5();
+
 
 // rBoot OTA object
 rBootHttpUpdate* otaUpdater = 0;
@@ -35,6 +44,7 @@ ActStates& actStates = ActStates::getInstance();
 */
 
 Timer timerWIFI;
+Timer timerBtnHandle;
 
 bool initHttp = false;
 
@@ -82,6 +92,7 @@ MCP* mcp;
 unsigned long pushTime[10] = {0,0,0,0,0,0,0,0,0,0};
 byte pushCount[10];
 bool pushSwitched[10];
+byte btnNum = -1;
 
 
 // MQTT client
@@ -95,26 +106,60 @@ ActStates* actStates;
 // LCD init
 LCD1602* lcd;
 
-void IRAM_ATTR turnSw(byte num, bool state) {
+bool  turnSw(byte num, bool state) {
 
 	DEBUG4_PRINTF("num=%d; state=%d; ", num, state);
 
 	actStates->setSw(num, state);
 
 	if (actStates->getSw(num)) {
-		DEBUG4_PRINTF(" set sw[%d] to GREEN;  ", num);
+		//DEBUG4_PRINTF(" set sw[%d] to GREEN;  ", num);
 		digitalWrite(appSettings->sw[num], HIGH);
 		//appSettings->led->green(num);
 		//mqtt.publish(sTopSw_Out+String(num+1), "ON");
 	}
 	else {
-		DEBUG4_PRINTF(" set sw[%d] to RED;  ", num);
+		//DEBUG4_PRINTF(" set sw[%d] to RED;  ", num);
 		digitalWrite(appSettings->sw[num], LOW);
 		//appSettings->led->red(num);
 		//mqtt.publish(sTopSw_Out+String(num+1), "OFF");
 	}
 
 	DEBUG4_PRINTLN("turnSw. Done");
+	return actStates->getSw(num);
+}
+
+bool  turnSw(byte num) {
+	if ((num == -1) || (num == 255)) {
+		ERROR_PRINT("ERROR: IN.turnSw num = ");
+		ERROR_PRINTLN(num);
+		return false;
+	}
+
+	return turnSw(num, !(actStates->getSw(num)));
+
+}
+
+void publish(byte num, bool state, bool longPressed) {
+	if (mqtt)
+		if (longPressed)
+			mqtt->publish(appSettings->topIN_L, num+1, OUT, (state?"ON":"OFF"));
+		else
+			mqtt->publish(appSettings->topIN, num+1, OUT, (state?"ON":"OFF"));
+
+}
+
+void attachInIntByNum (byte num) {
+	if (num == 0)
+		attachInterrupt(appSettings->in[0], interruptHandlerInSw1, FALLING);
+	else if (num == 1)
+		attachInterrupt(appSettings->in[1], interruptHandlerInSw2, FALLING);
+	else if (num == 2)
+		attachInterrupt(appSettings->in[2], interruptHandlerInSw3, FALLING);
+	else if (num == 3)
+		attachInterrupt(appSettings->in[3], interruptHandlerInSw4, FALLING);
+	else if (num == 4)
+		attachInterrupt(appSettings->in[4], interruptHandlerInSw5, FALLING);
 }
 
 void initSw() {
@@ -129,8 +174,76 @@ void initSw() {
 	}
 }
 
+void longtimeHandler() {
+	DEBUG4_PRINTLN("IN.ltH");
+	byte pin = appSettings->in[btnNum];
+	uint8_t act_state = digitalRead(pin);
+	//while (!(MCP23017::digitalRead(pin)));
+	DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
 
-void IRAM_ATTR interruptHandlerInSw(byte num) {
+	bool isLong = false;
+
+	if (act_state == LOW) {
+		//if (mqtt)
+		//	mqtt->publish(appSettings.topMIN_L, num+1, OUT, (actStates.msw[num]?"ON":"OFF"));
+		isLong = true;
+		DEBUG1_PRINTLN("*-long-*");
+	}
+	else {
+		isLong = false;
+		DEBUG1_PRINTLN("*-short-*");
+	}
+
+	publish(btnNum, actStates->sw[btnNum], isLong);
+
+	//attachInterrupt(appSettings.m_int, Delegate<void()>(&MCP::interruptCallback, this), FALLING);
+	attachInIntByNum(btnNum);
+}
+
+void interruptHandler() {
+	DEBUG4_PRINTLN("IN.intH");
+	//awakenByInterrupt = true;
+
+	byte pin = appSettings->in[btnNum];
+	//uint8_t last_state = getLastInterruptPinValue();
+	uint8_t act_state = digitalRead(pin);
+
+	DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
+
+	String msg = "push pin= " + String(pin) + ", state= " + String(act_state);
+	mqtt->publish("log_in_handler", OUT, msg);
+
+	if (act_state == LOW) {
+		timerBtnHandle.initializeMs(LONG_TIME, longtimeHandler).startOnce();
+		String strState = (turnSw(btnNum)?"ON":"OFF");
+		//if (mqtt)
+		//	mqtt->publish(appSettings.topMIN, appSettings.getMInNumByPin(pin)+1, OUT, strState);
+	}
+	else {
+
+		attachInIntByNum(btnNum);
+
+		DEBUG4_PRINTLN();
+	}
+
+}
+
+
+void interruptCallback(byte num) {
+	//detachInterrupt(appSettings->in[num]);
+	DEBUG4_PRINT("IN.intCB   ");
+	DEBUG4_PRINT(appSettings->in[num]);
+	btnNum = num;
+	DEBUG4_PRINT("  ..1 ");
+
+	DEBUG4_PRINT("..2 ");
+	timerBtnHandle.initializeMs(DEBOUNCE_TTIME, interruptHandler).startOnce();
+	DEBUG4_PRINT("..3 ");
+	DEBUG4_PRINTLN("...end");
+}
+
+/*
+void  interruptHandlerInSw(byte num) {
 	if ((millis() - pushTime[num]) > appSettings->debounce_time) {
 		pushTime[num] = millis();
 		pushSwitched[num] = false;
@@ -157,25 +270,31 @@ void IRAM_ATTR interruptHandlerInSw(byte num) {
 		DEBUG4_PRINTLN();
 	}
 }
+*/
 
-void IRAM_ATTR interruptHandlerInSw1() {
-	interruptHandlerInSw(0);
+void  interruptHandlerInSw1() {
+	detachInterrupt(appSettings->in[0]);
+	interruptCallback(0);
 }
 
-void IRAM_ATTR interruptHandlerInSw2() {
-	interruptHandlerInSw(1);
+void  interruptHandlerInSw2() {
+	detachInterrupt(appSettings->in[1]);
+	interruptCallback(1);
 }
 
-void IRAM_ATTR interruptHandlerInSw3() {
-	interruptHandlerInSw(2);
+void  interruptHandlerInSw3() {
+	detachInterrupt(appSettings->in[2]);
+	interruptCallback(2);
 }
 
-void IRAM_ATTR interruptHandlerInSw4() {
-	interruptHandlerInSw(3);
+void  interruptHandlerInSw4() {
+	detachInterrupt(appSettings->in[3]);
+	interruptCallback(3);
 }
 
-void IRAM_ATTR interruptHandlerInSw5() {
-	interruptHandlerInSw(4);
+void  interruptHandlerInSw5() {
+	detachInterrupt(appSettings->in[4]);
+	interruptCallback(4);
 }
 
 
@@ -984,16 +1103,15 @@ void initModules() {
 			}
 
 			if (in_cnt >= 1)
-				attachInterrupt(appSettings->in[0], interruptHandlerInSw1, HIGH);
+				attachInterrupt(appSettings->in[0], interruptHandlerInSw1, FALLING);
 			if (in_cnt >= 2)
-				attachInterrupt(appSettings->in[1], interruptHandlerInSw2, HIGH);
+				attachInterrupt(appSettings->in[1], interruptHandlerInSw2, FALLING);
 			if (in_cnt >= 3)
-				attachInterrupt(appSettings->in[2], interruptHandlerInSw3, HIGH);
+				attachInterrupt(appSettings->in[2], interruptHandlerInSw3, FALLING);
 			if (in_cnt >= 4)
-				attachInterrupt(appSettings->in[3], interruptHandlerInSw4, HIGH);
+				attachInterrupt(appSettings->in[3], interruptHandlerInSw4, FALLING);
 			if (in_cnt >= 5)
-				attachInterrupt(appSettings->in[4], interruptHandlerInSw5, HIGH);
-
+				attachInterrupt(appSettings->in[4], interruptHandlerInSw5, FALLING);
 		}
 
 		initSw();
