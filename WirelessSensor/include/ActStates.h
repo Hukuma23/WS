@@ -77,6 +77,8 @@ public:
 
 	void setSw(byte num, bool state);
 	bool getSw(byte num);
+	bool switchSw(byte num);
+	String getSwString(byte num);
 
 	void setSsw(byte num, bool state);
 	bool getSsw(byte num);

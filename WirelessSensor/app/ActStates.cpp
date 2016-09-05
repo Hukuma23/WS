@@ -425,22 +425,47 @@ void ActStates::setSw(byte num, bool state) {
 	if ((num >= 0) && (appSettings.sw_cnt > num)) {
 		if (sw[num] != state) {
 			this->sw[num] = state;
+
+			DEBUG1_PRINTF("ASt.setSw()\r\n");
+			appSettings.led->print();
+
+			if (state) {
+				appSettings.led->showOn(num);
+			}
+			else {
+				appSettings.led->showOff(num);
+			}
+
 			this->save();
 		}
 	}
 	else {
-		ERROR_PRINT("ERROR: setSw wrong number access");
+		ERROR_PRINTF("ERROR: setSw wrong number (%d) access. sw_cnt=%d", num, appSettings.sw_cnt);
 	}
 }
 
+bool ActStates::switchSw(byte num) {
+	bool state = !getSw(num);
+	setSw(num, state);
+	return state;
+}
+
 bool ActStates::getSw(byte num) {
-	bool result = null;
+	bool result = false;
 	if ((num >= 0) && (appSettings.sw_cnt > num))
 		result = this->sw[num];
 	else
 		ERROR_PRINT("ERROR: getSw wrong number access");
 	return result;
 }
+
+String ActStates::getSwString(byte num) {
+	if (getSw(num))
+		return "ON";
+	else
+		return "OFF";
+}
+
 
 void ActStates::setSsw(byte num, bool state) {
 	if ((num >= 0) && (appSettings.ssw_cnt > num)) {
