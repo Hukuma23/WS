@@ -15,6 +15,12 @@
 		//Serial.begin(115200);
 		rBootInit();
 		load();
+
+		mac_addr = WifiStation.getMAC();
+		DEBUG1_PRINT("MAC: ");
+		DEBUG1_PRINTLN(mac_addr);
+		initHttp();
+
 		loadNetwork();
 	}
 
@@ -318,7 +324,6 @@
 
 	uint8_t AppSettings::urlIndexChange() {
 		urlIndex++;
-		uint8_t urlMax = sizeof(urlFW)/ sizeof(urlFW[0]);
 		if (urlIndex > (urlMax - 1))
 			urlIndex = 0;
 
@@ -350,7 +355,11 @@
 	}
 
 	void AppSettings::downloadSettings() {
-		httpClient.downloadString(urlFW[urlIndex], HttpClientCompletedDelegate(&AppSettings::onComplete, this));
+		String urlSettings = urlHttp[urlIndex] + mac_addr + "/" + fileNameHttp[0];
+		DEBUG1_PRINT("Will download by http ");
+		DEBUG1_PRINTLN(urlSettings);
+
+		httpClient.downloadString(urlSettings, HttpClientCompletedDelegate(&AppSettings::onComplete, this));
 		//httpClient.downloadFile(urlFW[urlIndex], APP_SETTINGS_FILE, HttpClientCompletedDelegate(&AppSettings::onComplete, this));
 	}
 
@@ -361,6 +370,22 @@
 		}
 
 		timerHttp.initializeMs(HTTP_TRY_PERIOD, TimerDelegate(&AppSettings::downloadSettings, this)).startOnce();
+
+	}
+
+	void AppSettings::initHttp() {
+		urlMax = sizeof(urlHttp)/ sizeof(urlHttp[0]);
+		DEBUG1_PRINTF("urlMax = %d\r\n", urlMax);
+
+		/*
+		for (byte i=0; i < urlMax; i++) {
+			urlFW[i] = urlHttp[i] + mac_addr + "/" + fileNameHttp[0];
+		}
+
+		for (byte i=0; i < urlMax; i++) {
+			DEBUG1_PRINTLN(urlFW[i]);
+		}
+		*/
 
 	}
 

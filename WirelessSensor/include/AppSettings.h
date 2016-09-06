@@ -12,7 +12,7 @@
 #define INCLUDE_APPSETTINGS_H_
 
 //#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
-#define APP_SETTINGS_FILE "settings.conf" // There is no leading point for security reasons :)
+#define APP_SETTINGS_FILE "settings.bin" // There is no leading point for security reasons :)
 #define HTTP_TRY_PERIOD 5000
 #define MIN_FILE_SIZE	100
 
@@ -42,6 +42,7 @@ public:
 	uint32_t serial_speed = 115200;
 	String version = "Unknown";
 	byte init_cnt = 0;
+	String mac_addr = "unknown";
 
 	// NETWORK
 	String wifiList[9];
@@ -125,8 +126,17 @@ public:
 
 	// HTTP
 	HttpClient httpClient;
-	String urlFW[3] = {"http://10.0.1.22:8088/OTA/chldr/settings.conf", "http://nlpi.azurewebsites.net/OTA/chldr/settings.bin", "http://10.4.1.59:8080/chldr/settings.conf"};
+	String urlHttp[3] = {
+			"http://10.0.1.22:8088/OTA/",
+			"http://nlpi.azurewebsites.net/OTA/",
+			"http://10.4.1.59:8080/"
+	};
+
+	String fileNameHttp[3] = { APP_SETTINGS_FILE, "rom0.bin", "spiff_rom.bin"};
+
 	uint8_t urlIndex = 0;
+	uint8_t urlMax = 0;
+
 	Timer timerHttp;
 
 
@@ -183,6 +193,7 @@ public:
 
 	void downloadSettings();
 	void loadHttp();
+	void initHttp();
 
 	void saveLastWifi();
 	void save();
@@ -191,6 +202,8 @@ public:
 	void rBootInit();
 	//String update(JsonObject& root)
 	bool check();
+
+
 
 };
 
