@@ -52,15 +52,20 @@ void LED::initRG(bool* arr, byte arr_cnt) {
 	byte cnt = (this->cnt<arr_cnt?this->cnt:arr_cnt);
 	//DEBUG4_PRINTF("initRG.cnt = %d\r\n", cnt);
 	for (byte i = 0; i < cnt; i++) {
+		//DEBUG4_PRINTF("LED::initRG arr[%d] = %d, ", i, arr[i]);
 		if (arr[i]) { 	//GREEN
+			//DEBUG4_PRINT(" ..green");
 			led[3*i] = bright;
 			led[3*i + 1] = 0;
 			led[3*i + 2] = 0;
+			//DEBUG4_PRINTLN(" ..ok");
 		}
 		else {			// RED
+			//DEBUG4_PRINT(" ..red");
 			led[3*i] = 0;
 			led[3*i + 1] = bright;
 			led[3*i + 2] = 0;
+			//DEBUG4_PRINTLN(" ..ok");
 		}
 	}
 	show();
