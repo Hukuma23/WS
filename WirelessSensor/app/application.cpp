@@ -19,6 +19,7 @@ void onMessageReceived(String topic, String message); // Forward declaration for
 void publishSwitches(void);
 void checkWifi(void);
 void OtaUpdate(bool isSpiffs);
+void OtaUpdate(bool isSpiffs, String rom0, String spiffs);
 void switchBootRom();
 void ready();
 void connectOk();
@@ -26,6 +27,7 @@ void connectFail();
 void stopAllTimers();
 String ShowInfo();
 void initModules();
+void fwUpdate();
 
 void  interruptHandlerInSw1();
 void  interruptHandlerInSw2();
@@ -45,6 +47,7 @@ ActStates& actStates = ActStates::getInstance();
 
 Timer timerWIFI;
 Timer timerBtnHandle;
+Timer timerUpdate;
 
 bool initHttp = false;
 
@@ -105,6 +108,14 @@ ActStates* actStates;
 
 // LCD init
 LCD1602* lcd;
+
+
+void fwUpdate() {
+	String rom0 = appSettings->urlHttp[appSettings->urlIndex] + appSettings->mac_addr + "/" + appSettings->fileNameHttp[1];
+	String spiffs = appSettings->urlHttp[appSettings->urlIndex] + appSettings->mac_addr + "/" + appSettings->fileNameHttp[2];
+
+	OtaUpdate(true, rom0, spiffs);
+}
 
 bool  turnSw(byte num, bool state) {
 
@@ -353,29 +364,33 @@ void onMessageReceived(String topic, String message) {
 		//DEBUG4_PRINTLN("JSON 4");
 		DEBUG4_PRINTLN("cmd = " + cmd);
 		//DEBUG4_PRINTLN("JSON 5");
-		JsonArray& args = root["args"];
+		JsonArray& opts = root["opts"];
 		//DEBUG4_PRINTLN("JSON 6");
 
-		if (cmd.equals("sw_update")) {
+		if (cmd.equals("update_noconf")) {
 			stopAllTimers();
 			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware only now");
 			mqtt->publish(appSettings->topConfig, OUT, "Will stop all timers and UPDATE on the air firmware only now");
 			OtaUpdate(false); //OtaUpdateSW();
 		}
-		else if (cmd.equals("sw_update_all")) {
+		else if (cmd.equals("update_conf")) {
 			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware and spiffs now");
 			mqtt->publish(appSettings->topConfig, OUT, "Will stop all timers and UPDATE on the air firmware and spiffs now");
 			stopAllTimers();
 			OtaUpdate(true);
 		}
+		else if (cmd.equals("update")) {
+			//mqtt.publish(topCfg_Out, "Will stop all timers and UPDATE on the air firmware and spiffs now");
+			mqtt->publish(appSettings->topConfig, OUT, "Will stop all timers and UPDATE on the air firmware and spiffs now");
+			stopAllTimers();
+			timerUpdate.initializeMs(UPDATE_TRY_PERIOD, fwUpdate).startOnce();
+		}
+		else if ((cmd.equals("mac")) || (cmd.equals("getMac"))) {
+			mqtt->publish(appSettings->topConfig, OUT, appSettings->mac_addr);
+		}
 		else if ((cmd.equals("version")) || (cmd.equals("ver"))) {
 			//mqtt.publish(topCfg_Out, appSettings->version);
 			mqtt->publish(appSettings->topConfig, OUT, appSettings->version);
-		}
-		else if (cmd.equals("restart")) {
-			//mqtt.publish(topCfg_Out, "Will restart now");
-			mqtt->publish(appSettings->topConfig, OUT, "Will restart now");
-			System.restart();
 		}
 		else if (cmd.equals("conf_del")) {
 			//mqtt.publish(topCfg_Out, "Delete config now");
@@ -869,6 +884,7 @@ void connectWifi(void) {
 	}
 	else {
 		DEBUG4_PRINT("ERROR: Can't load network settings from Configuration file");
+		appSettings->deleteConf();
 	}
 	timerWIFI.stop();
 	timerWIFI.initializeMs(300, checkWifiConnection).start();
@@ -887,7 +903,7 @@ void ready() {
 
 
 	// If AP is enabled:
-	DEBUG4_PRINTF("AP. ip: %s mac: %s", WifiAccessPoint.getIP().toString().c_str(), WifiAccessPoint.getMAC().c_str());
+	//DEBUG4_PRINTF("AP. ip: %s mac: %s", WifiAccessPoint.getIP().toString().c_str(), WifiAccessPoint.getMAC().c_str());
 	timerWIFI.initializeMs(1000, connectWifi).start();
 	PRINT_MEM();
 }
@@ -909,10 +925,12 @@ void OtaUpdate_CallBack(bool result) {
 	} else {
 		// fail
 		DEBUG4_PRINTLN("Firmware update failed!");
+		appSettings->urlIndexChange();
+		timerUpdate.initializeMs(UPDATE_TRY_PERIOD, fwUpdate).startOnce();
 	}
 }
 
-void OtaUpdate(bool isSpiffs) {
+void OtaUpdate(bool isSpiffs, String rom0, String spiffs) {
 
 	uint8 slot;
 	rboot_config bootconf;
@@ -930,14 +948,14 @@ void OtaUpdate(bool isSpiffs) {
 
 #ifndef RBOOT_TWO_ROMS
 	// flash rom to position indicated in the rBoot config rom table
-	otaUpdater->addItem(bootconf.roms[slot], appSettings->rom0);
+	otaUpdater->addItem(bootconf.roms[slot], rom0);
 	//otaUpdater->addItem(bootconf.roms[slot], ROM_0_URL);
 #else
 	// flash appropriate rom
 	if (slot == 0) {
-		otaUpdater->addItem(bootconf.roms[slot], appSettings->rom0);
+		otaUpdater->addItem(bootconf.roms[slot], rom0);
 	} else {
-		otaUpdater->addItem(bootconf.roms[slot], appSettings->rom0);
+		otaUpdater->addItem(bootconf.roms[slot], rom0);
 	}
 #endif
 
@@ -945,10 +963,10 @@ void OtaUpdate(bool isSpiffs) {
 	if (isSpiffs) {
 		// use user supplied values (defaults for 4mb flash in makefile)
 		if (slot == 0) {
-			otaUpdater->addItem(RBOOT_SPIFFS_0, appSettings->spiffs);
+			otaUpdater->addItem(RBOOT_SPIFFS_0, spiffs);
 			//otaUpdater->addItem(RBOOT_SPIFFS_0, SPIFFS_URL);
 		} else {
-			otaUpdater->addItem(RBOOT_SPIFFS_1, appSettings->spiffs);
+			otaUpdater->addItem(RBOOT_SPIFFS_1, spiffs);
 			//otaUpdater->addItem(RBOOT_SPIFFS_1, SPIFFS_URL);
 		}
 	}
@@ -961,6 +979,10 @@ void OtaUpdate(bool isSpiffs) {
 
 	// start update
 	otaUpdater->start();
+}
+
+void OtaUpdate(bool isSpiffs) {
+	OtaUpdate(isSpiffs, appSettings->rom0, appSettings->spiffs);
 }
 
 void switchBootRom() {
