@@ -20,37 +20,14 @@
 #define SSW_ACT_STATE_FILE "ssw.states" // There is no leading point for security reasons :)
 #define MCP_ACT_STATE_FILE "mcp.states" // There is no leading point for security reasons :)
 
-#define CONST_SW_CNT 		0
-#define CONST_SSW_CNT		0
-#define CONST_MSW_CNT 		0
-
-
 // Singleton
 class ActStates {
 
 private:
-
-	/* Singleton part
-	// Конструкторы и оператор присваивания недоступны клиентам
-	ActStates(AppSettings& appSettings);
-	~ActStates();
-
-	ActStates(ActStates const&) = delete;
-	ActStates& operator= (ActStates const&) = delete;
-	 */
-
-	//byte msw_cnt = CONST_MSW_CNT;
 	Timer saveTimer;
 	AppSettings &appSettings;
 
 public:
-    /* Singleton part
-	static ActStates& getInstance() {
-        static ActStates instance( AppSettings::getInstance());
-        return instance;
-    }
-     */
-
 	ActStates(AppSettings &appSettings);
 	~ActStates();
 
@@ -59,11 +36,10 @@ public:
 	bool* ssw;
 	bool* msw;
 
-	//byte sw_cnt = CONST_SW_CNT;
-	//byte ssw_cnt = CONST_SSW_CNT;
 
-	void load(bool arr[], byte cnt, String fileName);
-	void loadSSW();
+	bool load(bool arr[], byte cnt, String fileName);
+	void loadStates();
+
 	void init();
 	void save();
 	void save2file();

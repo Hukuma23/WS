@@ -10,18 +10,13 @@
 #include <actStates.h>
 
 
-// Конструкторы и оператор присваивания недоступны клиентам
+// Конструкторы и оператор присваивания private
 
 ActStates::ActStates(AppSettings& appSettings) : appSettings(appSettings) {
 	//Initialization of rBoot OTA
 	this->appSettings.rBootInit();
-	//sw1 = LOW;
-	//sw2 = LOW;
-	//load(ssw, appSettings.ssw_cnt, SSW_ACT_STATE_FILE);
-	loadSSW();
-	DEBUG1_PRINTF("msw_cnt = %d", appSettings.msw_cnt);
-	DEBUG1_PRINTF("ssw_cnt = %d", appSettings.ssw_cnt);
-	DEBUG1_PRINTF("sw_cnt = %d", appSettings.sw_cnt);
+	loadStates();
+
 }
 
 ActStates::~ActStates() {
@@ -30,71 +25,67 @@ ActStates::~ActStates() {
 	delete msw;
 }
 
+void ActStates::loadStates() {
+	//DEBUG1_PRINTF("msw_cnt = %d", appSettings.msw_cnt);
+	bool result = false;
+	if (appSettings.msw_cnt > 0) {
+		msw = new bool[appSettings.msw_cnt];
+		result = load(msw, appSettings.msw_cnt, MCP_ACT_STATE_FILE);
+	}
 
+	//DEBUG1_PRINTF("ssw_cnt = %d", appSettings.ssw_cnt);
+	if (appSettings.ssw_cnt > 0) {
+		ssw = new bool[appSettings.ssw_cnt];
+		result = result || load(ssw, appSettings.ssw_cnt, SSW_ACT_STATE_FILE);
+	}
 
-void ActStates::load(bool arr[], byte cnt, String fileName) {
+	//DEBUG1_PRINTF("sw_cnt = %d", appSettings.sw_cnt);
+	if (appSettings.sw_cnt > 0) {
+		sw = new bool[appSettings.sw_cnt];
+		result = result || load(sw, appSettings.sw_cnt, SW_ACT_STATE_FILE);
+	}
+
+	needInit = result;
+}
+
+bool ActStates::load(bool* arr, byte cnt, String fileName) {
+
+	if (cnt <= 0)
+		return false;
+
+	DEBUG1_PRINT("AS.load: ");
+	DEBUG1_PRINT(fileName);
+
 	DynamicJsonBuffer jsonBuffer;
 	if (exist(fileName)) {
+		DEBUG1_PRINT(".. file exist! Size = ");
 		int size = fileGetSize(fileName);
+		DEBUG1_PRINTLN(size);
 		char* jsonString = new char[size + 1];
 		fileGetContent(fileName, jsonString, size + 1);
+		DEBUG1_PRINTLN(jsonString);
 		JsonObject& root = jsonBuffer.parseObject(jsonString);
 
-		/*
-			JsonObject& jSW = root["sw"];
-			byte sw_cnt = jSW["cnt"];
-
-			if (sw_cnt > 0) {
-				sw = new bool[sw_cnt];
-				for (byte i=0; i < sw_cnt; i++)
-					sw[i] = jSW[String(i)];
-			}
-
-			if (sw_cnt != appSettings.sw_cnt) {
-				ERROR_PRINTF("ERROR: ASt.sw_cnt(%d) != AS.sw_cnt(%d)", sw_cnt, appSettings.sw_cnt);
-				sw_cnt = appSettings.sw_cnt;
-			}
-
-			JsonObject& jSSW = root["ssw"];
-			byte ssw_cnt = jSSW["cnt"];
-			if (ssw_cnt > 0) {
-				ssw = new bool[ssw_cnt];
-				for (byte i=0; i < ssw_cnt; i++)
-					ssw[i] = jSSW[String(i)];
-			}
-
-			if (ssw_cnt != appSettings.ssw_cnt) {
-				ERROR_PRINTF("ERROR: ASt.ssw_cnt(%d) != AS.ssw_cnt(%d)", ssw_cnt, appSettings.ssw_cnt);
-				ssw_cnt = appSettings.ssw_cnt;
-			}
-
-			JsonObject& jMSW = root["msw"];
-			byte msw_cnt = jMSW["cnt"];
-
-			if (msw_cnt > 0) {
-				msw = new bool[msw_cnt];
-				for (byte i=0; i < msw_cnt; i++)
-					msw[i] = jMSW[String(i)];
-			}
-
-			if (msw_cnt != appSettings.msw_cnt) {
-				ERROR_PRINTF("ERROR: ASt.msw_cnt(%d) != AS.msw_cnt(%d)", msw_cnt, appSettings.msw_cnt);
-				msw_cnt = appSettings.msw_cnt;
-			}
-		 */
-
-
 		byte count = root["cnt"];
-
+		DEBUG1_PRINTF("AS count = %d", count);
 		if (count > 0) {
-			arr = new bool[count];
+			//arr = new bool[count];
 			for (byte i=0; i < count; i++)
 				arr[i] = root[String(i)];
 		}
 
 		if (count != cnt) {
-			ERROR_PRINTF("ERROR: ASt.count(%d) != AS.cnt(%d)", count, cnt);
-			count = appSettings.msw_cnt;
+			ERROR_PRINTF("ERROR: ASt.count(%d) != AS.arr_cnt(%d)", count, cnt);
+
+			if (count < cnt) {
+				for (byte i = count; i < cnt; i++) {
+					arr[i] = false;
+				}
+				save();
+			}
+
+			count = cnt;
+
 		}
 
 		DEBUG1_PRINTF("LED.load()\r\n");
@@ -103,63 +94,27 @@ void ActStates::load(bool arr[], byte cnt, String fileName) {
 		delete[] jsonString;
 	}
 	else {
-		needInit = true;
+		DEBUG1_PRINTLN(".. needInit");
+		//needInit = true;
+		return true;
 	}
+	return false;
 }
 
-void ActStates::loadSSW() {
-	DEBUG1_PRINTF("AS.loadSSW()");
+/*
+bool ActStates::loadSSW() {
+
+	if (appSettings.ssw_cnt <= 0)
+		return false;
+
+	DEBUG1_PRINTF("AS.loadSSW()\r\n");
 	DynamicJsonBuffer jsonBuffer;
 	if (exist(SSW_ACT_STATE_FILE)) {
-		DEBUG1_PRINTF("AS.loadSSW().exist!");
+		DEBUG1_PRINTF("AS.loadSSW().exist!\r\n");
 		int size = fileGetSize(SSW_ACT_STATE_FILE);
 		char* jsonString = new char[size + 1];
 		fileGetContent(SSW_ACT_STATE_FILE, jsonString, size + 1);
 		JsonObject& root = jsonBuffer.parseObject(jsonString);
-
-		/*
-			JsonObject& jSW = root["sw"];
-			byte sw_cnt = jSW["cnt"];
-
-			if (sw_cnt > 0) {
-				sw = new bool[sw_cnt];
-				for (byte i=0; i < sw_cnt; i++)
-					sw[i] = jSW[String(i)];
-			}
-
-			if (sw_cnt != appSettings.sw_cnt) {
-				ERROR_PRINTF("ERROR: ASt.sw_cnt(%d) != AS.sw_cnt(%d)", sw_cnt, appSettings.sw_cnt);
-				sw_cnt = appSettings.sw_cnt;
-			}
-
-			JsonObject& jSSW = root["ssw"];
-			byte ssw_cnt = jSSW["cnt"];
-			if (ssw_cnt > 0) {
-				ssw = new bool[ssw_cnt];
-				for (byte i=0; i < ssw_cnt; i++)
-					ssw[i] = jSSW[String(i)];
-			}
-
-			if (ssw_cnt != appSettings.ssw_cnt) {
-				ERROR_PRINTF("ERROR: ASt.ssw_cnt(%d) != AS.ssw_cnt(%d)", ssw_cnt, appSettings.ssw_cnt);
-				ssw_cnt = appSettings.ssw_cnt;
-			}
-
-			JsonObject& jMSW = root["msw"];
-			byte msw_cnt = jMSW["cnt"];
-
-			if (msw_cnt > 0) {
-				msw = new bool[msw_cnt];
-				for (byte i=0; i < msw_cnt; i++)
-					msw[i] = jMSW[String(i)];
-			}
-
-			if (msw_cnt != appSettings.msw_cnt) {
-				ERROR_PRINTF("ERROR: ASt.msw_cnt(%d) != AS.msw_cnt(%d)", msw_cnt, appSettings.msw_cnt);
-				msw_cnt = appSettings.msw_cnt;
-			}
-		 */
-
 
 		byte count = root["cnt"];
 
@@ -182,8 +137,11 @@ void ActStates::loadSSW() {
 	else {
 		DEBUG1_PRINTF("AS.loadSSW().needInit");
 		needInit = true;
+		return true;
 	}
+	return false;
 }
+*/
 
 void ActStates::init() {
 	DEBUG4_PRINTLN("ASt.init");
@@ -227,33 +185,6 @@ void ActStates::save2file() {
 	//StaticJsonBuffer<200> jsonBuffer;
 	DynamicJsonBuffer jsonBuffer;
 	JsonObject& root = jsonBuffer.createObject();
-
-	/*
-		JsonObject& jSW = root.createNestedObject("sw");	//JsonObject& jSW = jsonBuffer.createObject();
-		if (appSettings.sw_cnt > 0) {
-			jSW["cnt"] = appSettings.sw_cnt;
-			for (byte i=0; i < appSettings.sw_cnt; i++)
-				jSW[String(i)] = sw[i];
-		}
-
-
-		JsonObject& jSSW = root.createNestedObject("ssw");	//JsonObject& jSSW = jsonBuffer.createObject();
-		//root["ssw"] = jSSW;
-		if (appSettings.ssw_cnt > 0) {
-			jSSW["cnt"] = appSettings.ssw_cnt;
-			for (byte i=0; i < appSettings.ssw_cnt; i++)
-				jSSW[String(i)] = ssw[i];
-		}
-
-
-		JsonObject& jMSW = root.createNestedObject("msw");	//JsonObject& jMSW = jsonBuffer.createObject();
-		//root["msw"] = jMSW;
-		if (appSettings.msw_cnt > 0) {
-			jMSW["cnt"] = appSettings.msw_cnt;
-			for (byte i=0; i < appSettings.msw_cnt; i++)
-				jMSW[String(i)] = msw[i];
-		}
-	 */
 
 
 	if (appSettings.sw_cnt > 0) {
@@ -359,68 +290,6 @@ String ActStates::print() {
 	return "State files don't exist";
 }
 
-/*
-	String ActStates::update(JsonObject& root) {
-
-		String result;
-
-		if (root.containsKey("sw")) {
-			JsonObject& switches = root["switches"];
-			if (switches.containsKey("sw1")) {
-				this->sw1 = switches["sw1"];
-				result += "sw1, ";
-			}
-
-		if (root.containsKey("switches")) {
-			JsonObject& switches = root["switches"];
-			if (switches.containsKey("sw1")) {
-				this->sw1 = switches["sw1"];
-				result += "sw1, ";
-			}
-			if (switches.containsKey("sw2")) {
-				this->sw2 = switches["sw2"];
-				result += "sw2, ";
-			}
-
-			if (switches.containsKey("ssw1")) {
-				this->ssw1 = switches["ssw1"];
-				result += "ssw1, ";
-			}
-			if (switches.containsKey("ssw2")) {
-				this->ssw2 = switches["ssw2"];
-				result += "ssw2, ";
-			}
-			if (switches.containsKey("ssw3")) {
-				this->ssw3 = switches["ssw3"];
-				result += "ssw3, ";
-			}
-			if (switches.containsKey("ssw4")) {
-				this->ssw4 = switches["ssw4"];
-				result += "ssw4, ";
-			}
-			if (switches.containsKey("ssw5")) {
-				this->ssw5 = switches["ssw5"];
-				result += "ssw5, ";
-			}
-		}
-
-		int len = result.length();
-		if (len > 2) {
-			result = "These states were updated: " + result.substring(0, len-2);
-		}
-		else
-			result = "Nothing updated";
-
-		return result;
-	}
-
-
-	void ActStates::updateNsave(JsonObject& root) {
-		this->update(root);
-		this->save();
-	}
- */
-
 void ActStates::setSw(byte num, bool state) {
 	if ((num >= 0) && (appSettings.sw_cnt > num)) {
 		if (sw[num] != state) {
@@ -489,25 +358,26 @@ bool ActStates::getSsw(byte num) {
 
 
 uint8_t ActStates::getSsw() {
-	DEBUG1_PRINTF("AS.getSsw()");
+	//DEBUG1_PRINTF("AS.getSsw()");
 	uint8_t result = 0;
 	if (appSettings.ssw_cnt > 0) {
 		for (byte i = 0; i < appSettings.ssw_cnt; i++)
 			result += ssw[i] << i;
 	}
 	//uint8_t sw = this->ssw1 + (this->ssw2 << 1) + (this->ssw3 << 2) + (this->ssw4 << 3) + (this->ssw5 << 4);
-	DEBUG1_PRINTF("AS.getSsw().done");
+	//DEBUG1_PRINTF("AS.getSsw().done");
 	return result;
 }
 
 
 void ActStates::setMsw(byte num, bool state) {
 	if ((num >= 0) && (appSettings.msw_cnt > num)) {
+		//DEBUG1_PRINTF("ASt.setMsw() msw[%d]=%d, new state=%d \r\n", num, msw[num], state);
 		if (msw[num] != state) {
 			this->msw[num] = state;
 
 			DEBUG1_PRINTF("ASt.setMsw()\r\n");
-			appSettings.led->print();
+			//appSettings.led->print();
 
 			if (state) {
 				appSettings.led->showOn(num);
@@ -525,13 +395,15 @@ void ActStates::setMsw(byte num, bool state) {
 }
 
 void ActStates::initLED() {
-	DEBUG1_PRINTF("InitLED()\r\n");
+	DEBUG4_PRINTF("InitLED() msw(%d), ssw(%d), sw(%d) \r\n", appSettings.msw_cnt, appSettings.ssw_cnt, appSettings.sw_cnt);
 	if (appSettings.msw_cnt > 0)
 		appSettings.led->initRG(msw, appSettings.msw_cnt);
 	else if (appSettings.ssw_cnt > 0)
 		appSettings.led->initRG(ssw, appSettings.ssw_cnt);
 	else if (appSettings.sw_cnt > 0)
 		appSettings.led->initRG(sw, appSettings.sw_cnt);
+
+	DEBUG4_PRINTLN(".. DONE!");
 }
 
 void ActStates::initLED(bool* arr, byte cnt) {
@@ -551,9 +423,10 @@ bool ActStates::switchMsw(byte num) {
 
 bool ActStates::getMsw(byte num) {
 	bool result = false;
-	if ((num >= 0) && (appSettings.msw_cnt > num))
+	if ((num >= 0) && (num < appSettings.msw_cnt)) {
 		result = this->msw[num];
-
+		//DEBUG1_PRINTF("\r\ngetMsw(%d) = %d\r\n", num, result);
+	}
 	return result;
 }
 
