@@ -14,6 +14,7 @@
 //#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
 #define APP_SETTINGS_FILE "settings.bin" // There is no leading point for security reasons :)
 #define HTTP_TRY_PERIOD 5000
+#define UPDATE_TRY_PERIOD 5000
 #define MIN_FILE_SIZE	100
 
 class AppSettings {
