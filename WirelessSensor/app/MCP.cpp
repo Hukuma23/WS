@@ -69,7 +69,9 @@ void MCP::interruptHandler() {
 
 	if (act_state == LOW) {
 		timerBtnHandle.initializeMs(LONG_TIME, TimerDelegate(&MCP::longtimeHandler, this)).startOnce();
-		String strState = (turnSw(appSettings.getMInNumByPin(pin))?"ON":"OFF");
+		turnSw(appSettings.getMInNumByPin(pin));
+
+		//String strState = (turnSw(appSettings.getMInNumByPin(pin))?"ON":"OFF");
 		//if (mqtt)
 		//	mqtt->publish(appSettings.topMIN, appSettings.getMInNumByPin(pin)+1, OUT, strState);
 	}
@@ -142,6 +144,7 @@ bool MCP::turnSw(byte num, bool state) {
 	if (actStates.msw[num] != state) {
 		actStates.setMsw(num, state);
 		MCP23017::digitalWrite(appSettings.msw[num], state);
+		mqtt->publish(appSettings.topMSW, (num+1), OUT, (state?"ON":"OFF"));
 	}
 	return state;
 }
