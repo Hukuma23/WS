@@ -11,6 +11,7 @@
 
 
 #define DEBOUNCE_TTIME 	20
+#define FIRMWARE "20160911"
 
 //FTPServer ftp;
 
@@ -117,11 +118,12 @@ void fwUpdate() {
 	OtaUpdate(true, rom0, spiffs);
 }
 
-bool  turnSw(byte num, bool state) {
+bool turnSw(byte num, bool state) {
 
 	DEBUG4_PRINTF("num=%d; state=%d; ", num, state);
 
 	actStates->setSw(num, state);
+	String msg;
 
 	if (actStates->getSw(num)) {
 		//DEBUG4_PRINTF(" set sw[%d] to GREEN;  ", num);
@@ -136,11 +138,12 @@ bool  turnSw(byte num, bool state) {
 		//mqtt.publish(sTopSw_Out+String(num+1), "OFF");
 	}
 
+	mqtt->publish(appSettings->topSW, (num+1), OUT, (state?"ON":"OFF"));
 	DEBUG4_PRINTLN("turnSw. Done");
 	return actStates->getSw(num);
 }
 
-bool  turnSw(byte num) {
+bool turnSw(byte num) {
 	if ((num == -1) || (num == 255)) {
 		ERROR_PRINT("ERROR: IN.turnSw num = ");
 		ERROR_PRINTLN(num);
@@ -226,7 +229,9 @@ void interruptHandler() {
 
 	if (act_state == LOW) {
 		timerBtnHandle.initializeMs(LONG_TIME, longtimeHandler).startOnce();
-		String strState = (turnSw(btnNum)?"ON":"OFF");
+		turnSw(btnNum);
+
+		//String strState = (turnSw(btnNum)?"ON":"OFF");
 		//if (mqtt)
 		//	mqtt->publish(appSettings.topMIN, appSettings.getMInNumByPin(pin)+1, OUT, strState);
 	}
@@ -252,36 +257,6 @@ void interruptCallback(byte num) {
 	DEBUG4_PRINT("..3 ");
 	DEBUG4_PRINTLN("...end");
 }
-
-/*
-void  interruptHandlerInSw(byte num) {
-	if ((millis() - pushTime[num]) > appSettings->debounce_time) {
-		pushTime[num] = millis();
-		pushSwitched[num] = false;
-		pushCount[num] = 1;
-		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] 1st time, nowState = " + String(actStates->sw[num]);
-		//mqtt.publish(topCfg_Out, logStr.c_str());
-		DEBUG4_PRINTLN(logStr);
-		return;
-	}
-	else {
-		pushCount[num]++;
-	}
-
-	if (((millis() - pushTime[num]) < appSettings->debounce_time) && (pushCount[num] > 4) && (!pushSwitched[num])) {
-
-		pushSwitched[num] = true;
-		turnSw(num, !actStates->sw[num]);
-		String logStr = String(pushTime[num]) + "   PRESSED in[" + String(num) + "] " + pushCount[num] +" times, nowState = " + String(actStates->sw[num]);
-		//mqtt.publish(topCfg_Out, logStr.c_str());
-
-		DEBUG4_PRINT(pushTime[num]);
-		DEBUG4_PRINTF( "   sw%d = ", num);
-		DEBUG4_PRINT(actStates->sw[num]);
-		DEBUG4_PRINTLN();
-	}
-}
-*/
 
 void  interruptHandlerInSw1() {
 	detachInterrupt(appSettings->in[0]);
@@ -920,6 +895,7 @@ void OtaUpdate_CallBack(bool result) {
 
 		// set to boot new rom and then reboot
 		DEBUG4_PRINTF("Firmware updated, rebooting to rom %d...\r\n", slot);
+		mqtt->publish(appSettings->topLog, OUT, "Firmware updated successful, will reboot now");
 		rboot_set_current_rom(slot);
 		System.restart();
 	} else {
@@ -936,6 +912,11 @@ void OtaUpdate(bool isSpiffs, String rom0, String spiffs) {
 	rboot_config bootconf;
 
 	DEBUG4_PRINTLN("Updating...");
+
+	if (isSpiffs)
+		mqtt->publish(appSettings->topLog, OUT, "rom0: " + rom0 + "\r\nspiffs: " + spiffs);
+	else
+		mqtt->publish(appSettings->topLog, OUT, "rom0: " + rom0);
 
 	// need a clean object, otherwise if run before and failed will not run again
 	if (otaUpdater) delete otaUpdater;
@@ -962,6 +943,7 @@ void OtaUpdate(bool isSpiffs, String rom0, String spiffs) {
 #ifndef DISABLE_SPIFFS
 	if (isSpiffs) {
 		// use user supplied values (defaults for 4mb flash in makefile)
+		DEBUG1_PRINTLN("Add Spiffs URL to update");
 		if (slot == 0) {
 			otaUpdater->addItem(RBOOT_SPIFFS_0, spiffs);
 			//otaUpdater->addItem(RBOOT_SPIFFS_0, SPIFFS_URL);
@@ -1006,6 +988,8 @@ String ShowInfo() {
 	result += "\r\nBoot slot: ";
 	result += bootconf.current_rom;
 	result += "\r\nROM: ";
+	result += FIRMWARE;
+	result += "\r\nConfig: ";
 	result += appSettings->version;
 	result += "\r\nSDK: ";
 	result += String(system_get_sdk_version());
