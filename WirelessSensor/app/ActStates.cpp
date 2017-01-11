@@ -144,36 +144,36 @@ bool ActStates::loadSSW() {
 */
 
 void ActStates::init() {
-	DEBUG4_PRINTLN("ASt.init");
+	//DEBUG4_PRINTLN("ASt.init");
 	if (needInit) {
-		DEBUG4_PRINTLN("ASt.1");
+		//DEBUG4_PRINTLN("ASt.1");
 		if (appSettings.sw_cnt > 0) {
 			sw = new bool[appSettings.sw_cnt];
 			for (byte i=0; i < appSettings.sw_cnt; i++)
 				sw[i] = false;
 		}
-		DEBUG4_PRINTLN("ASt.2");
+		//DEBUG4_PRINTLN("ASt.2");
 
 		if (appSettings.ssw_cnt > 0) {
-			DEBUG4_PRINTLN("ASt.2.1");
+			//DEBUG4_PRINTLN("ASt.2.1");
 			ssw = new bool[appSettings.ssw_cnt];
 			for (byte i=0; i < appSettings.ssw_cnt; i++)
 				ssw[i] = false;
 		}
 
 		if (appSettings.msw_cnt > 0) {
-			DEBUG4_PRINTLN("ASt.3.1");
+			//DEBUG4_PRINTLN("ASt.3.1");
 			msw = new bool[appSettings.msw_cnt];
 			for (byte i=0; i < appSettings.msw_cnt; i++)
 				msw[i] = false;
 		}
 
-		DEBUG1_PRINTF("LED.init()\r\n");
+		//DEBUG1_PRINTF("LED.init()\r\n");
 		initLED();
 
 		this->save2file();
 		needInit = false;
-		DEBUG4_PRINTLN("ASt.5");
+		//DEBUG4_PRINTLN("ASt.5");
 	}
 }
 
@@ -197,8 +197,8 @@ void ActStates::save2file() {
 
 		fileSetContent(SW_ACT_STATE_FILE, str);
 
-		DEBUG1_PRINTLN(str);
-		DEBUG1_PRINTLN("SW states file was saved");
+		//DEBUG1_PRINTLN(str);
+		//DEBUG1_PRINTLN("SW states file was saved");
 	}
 
 	if (appSettings.ssw_cnt > 0) {
@@ -211,8 +211,8 @@ void ActStates::save2file() {
 
 		fileSetContent(SSW_ACT_STATE_FILE, str);
 
-		DEBUG1_PRINTLN(str);
-		DEBUG1_PRINTLN("SSW states file was saved");
+		//DEBUG1_PRINTLN(str);
+		//DEBUG1_PRINTLN("SSW states file was saved");
 	}
 
 	if (appSettings.msw_cnt > 0) {
@@ -225,8 +225,8 @@ void ActStates::save2file() {
 
 		fileSetContent(MCP_ACT_STATE_FILE, str);
 
-		DEBUG1_PRINTLN(str);
-		DEBUG1_PRINTLN("MCP states file was saved");
+		//DEBUG1_PRINTLN(str);
+		//DEBUG1_PRINTLN("MCP states file was saved");
 	}
 }
 
@@ -295,7 +295,7 @@ void ActStates::setSw(byte num, bool state) {
 		if (sw[num] != state) {
 			this->sw[num] = state;
 
-			DEBUG1_PRINTF("ASt.setSw()\r\n");
+			//DEBUG1_PRINTF("ASt.setSw()\r\n");
 			appSettings.led->print();
 
 			if (state) {
@@ -376,7 +376,7 @@ void ActStates::setMsw(byte num, bool state) {
 		if (msw[num] != state) {
 			this->msw[num] = state;
 
-			DEBUG1_PRINTF("ASt.setMsw()\r\n");
+			//DEBUG1_PRINTF("ASt.setMsw()\r\n");
 			//appSettings.led->print();
 
 			if (state) {
@@ -395,7 +395,7 @@ void ActStates::setMsw(byte num, bool state) {
 }
 
 void ActStates::initLED() {
-	DEBUG4_PRINTF("InitLED() msw(%d), ssw(%d), sw(%d) \r\n", appSettings.msw_cnt, appSettings.ssw_cnt, appSettings.sw_cnt);
+	//DEBUG4_PRINTF("InitLED() msw(%d), ssw(%d), sw(%d) \r\n", appSettings.msw_cnt, appSettings.ssw_cnt, appSettings.sw_cnt);
 	if (appSettings.msw_cnt > 0)
 		appSettings.led->initRG(msw, appSettings.msw_cnt);
 	else if (appSettings.ssw_cnt > 0)
@@ -403,7 +403,7 @@ void ActStates::initLED() {
 	else if (appSettings.sw_cnt > 0)
 		appSettings.led->initRG(sw, appSettings.sw_cnt);
 
-	DEBUG4_PRINTLN(".. DONE!");
+	//DEBUG4_PRINTLN(".. DONE!");
 }
 
 void ActStates::initLED(bool* arr, byte cnt) {
