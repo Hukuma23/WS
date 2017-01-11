@@ -1,17 +1,17 @@
 #include <MCP.h>
 
 MCP::MCP(MQTT &mqtt, AppSettings &appSettings, ActStates &actStates) : MCP23017(), appSettings(appSettings), actStates(actStates) {
-	DEBUG4_PRINT("MCP.create");
+	//DEBUG4_PRINT("MCP.create");
 	init(mqtt);
 }
 
 MCP::~MCP() {
-	DEBUG4_PRINTLN("MCP delete called");
+	//DEBUG4_PRINTLN("MCP delete called");
 }
 
 
 void MCP::init(MQTT &mqtt) {
-	DEBUG1_PRINTLN("MCP.init");
+	//DEBUG1_PRINTLN("MCP.init");
 	delay(50);
 	Wire.pins(4, 5);
 	MCP23017::begin(0);
@@ -43,26 +43,26 @@ void MCP::init(MQTT &mqtt) {
 }
 
 void MCP::interruptReset() {
-	DEBUG1_PRINT("MCP.interruptReset");
+	//DEBUG1_PRINT("MCP.interruptReset");
 	uint8_t pin = MCP23017::getLastInterruptPin();
 	uint8_t last_state = MCP23017::getLastInterruptPinValue();
 
-	DEBUG1_PRINTF("interrupt pin= %d, state=%d", pin, last_state);
+	//DEBUG1_PRINTF("interrupt pin= %d, state=%d", pin, last_state);
 	String msg = "interrupt pin= " + String(pin) + ", state= " + String(last_state);
 	mqtt->publish("log_mcp_rst", OUT, msg);
 
-	DEBUG1_PRINTLN();
+	//DEBUG1_PRINTLN();
 }
 
 void MCP::interruptHandler() {
-	DEBUG4_PRINTLN("MCP.intH");
+	//DEBUG4_PRINTLN("MCP.intH");
 	//awakenByInterrupt = true;
 
 	pin = MCP23017::getLastInterruptPin();
 	uint8_t last_state = MCP23017::getLastInterruptPinValue();
 	uint8_t act_state = MCP23017::digitalRead(pin);
 
-	DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
+	//DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
 
 	String msg = "push pin= " + String(pin) + ", state= " + String(act_state);
 	mqtt->publish("log_mcp_handler", OUT, msg);
@@ -77,16 +77,16 @@ void MCP::interruptHandler() {
 	}
 	else {
 		attachInterrupt(appSettings.m_int, Delegate<void()>(&MCP::interruptCallback, this), FALLING);
-		DEBUG4_PRINTLN();
+		//DEBUG4_PRINTLN();
 	}
 
 }
 
 void MCP::longtimeHandler() {
-	DEBUG4_PRINTLN("MCP.ltH");
+	//DEBUG4_PRINTLN("MCP.ltH");
 	uint8_t act_state = MCP23017::digitalRead(pin);
 	while (!(MCP23017::digitalRead(pin)));
-	DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
+	//DEBUG4_PRINTF("push pin=%d state=%d. ", pin, act_state);
 
 	byte num = appSettings.getMInNumByPin(pin);
 	bool isLong = false;
@@ -95,11 +95,11 @@ void MCP::longtimeHandler() {
 		//if (mqtt)
 		//	mqtt->publish(appSettings.topMIN_L, num+1, OUT, (actStates.msw[num]?"ON":"OFF"));
 		isLong = true;
-		DEBUG1_PRINTLN("*-long-*");
+		//DEBUG1_PRINTLN("*-long-*");
 	}
 	else {
 		isLong = false;
-		DEBUG1_PRINTLN("*-short-*");
+		//DEBUG1_PRINTLN("*-short-*");
 	}
 
 	publish(num, actStates.msw[num], isLong);
@@ -109,13 +109,13 @@ void MCP::longtimeHandler() {
 
 
 void MCP::interruptCallback() {
-	DEBUG4_PRINT("MCP.intCB   ");
+	//DEBUG4_PRINT("MCP.intCB   ");
 	detachInterrupt(appSettings.m_int);
 	timerBtnHandle.initializeMs(DEBOUNCE_TIME, TimerDelegate(&MCP::interruptHandler, this)).startOnce();
 }
 
 void MCP::publish() {
-	DEBUG4_PRINT("MCP.publish");
+	//DEBUG4_PRINT("MCP.publish");
 
 	for (byte i = 0; i < appSettings.msw_cnt; i++) {
 		MCP23017::digitalWrite(appSettings.msw[i], actStates.getMsw(i));
@@ -123,12 +123,12 @@ void MCP::publish() {
 		if (mqtt)
 			mqtt->publish(appSettings.topMSW,i+1, OUT, strState);
 
-		DEBUG1_PRINTF("sw[%d]=", i);
-		DEBUG1_PRINT(strState);
-		DEBUG1_PRINTLN();
+		//DEBUG1_PRINTF("sw[%d]=", i);
+		//DEBUG1_PRINT(strState);
+		//DEBUG1_PRINTLN();
 	}
 	PRINT_MEM();
-	DEBUG4_PRINTLN();
+	//DEBUG4_PRINTLN();
 
 	interruptReset();
 
@@ -169,17 +169,17 @@ bool MCP::turnSw(byte num) {
 }
 
 void MCP::startTimer() {
-	DEBUG4_PRINTLN("MCP::startTimer");
+	//DEBUG4_PRINTLN("MCP::startTimer");
 	timer.initializeMs(appSettings.shift_mcp, TimerDelegate(&MCP::start, this)).startOnce();
 };
 
 void MCP::stopTimer() {
-	DEBUG4_PRINTLN("MCP::stopTimer");
+	//DEBUG4_PRINTLN("MCP::stopTimer");
 	timer.stop();
 };
 
 void MCP::start() {
-	DEBUG4_PRINTLN("MCP::start");
+	//DEBUG4_PRINTLN("MCP::start");
 	timer.initializeMs(appSettings.interval_mcp, TimerDelegate(&MCP::publish,this)).start();
 }
 
@@ -193,7 +193,7 @@ bool MCP::processCallback(String topic, String message) {
 				turnSw(i, LOW);
 				return true;
 			} else {
-				DEBUG4_PRINTF("MCP:: Topic %s, message is UNKNOWN", (mqtt->getTopic(appSettings.topMSW, (i+1), IN)).c_str());
+				//DEBUG4_PRINTF("MCP:: Topic %s, message is UNKNOWN", (mqtt->getTopic(appSettings.topMSW, (i+1), IN)).c_str());
 				return false;
 			}
 		}
