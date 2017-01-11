@@ -11,7 +11,7 @@
 #ifndef INCLUDE_APPSETTINGS_H_
 #define INCLUDE_APPSETTINGS_H_
 
-//#define APP_SETTINGS_FILE ".settings.conf" // leading point for security reasons :)
+#define SERIAL_SPEED	9600
 #define APP_SETTINGS_FILE "settings.bin" // There is no leading point for security reasons :)
 #define HTTP_TRY_PERIOD 5000
 #define UPDATE_TRY_PERIOD 5000
