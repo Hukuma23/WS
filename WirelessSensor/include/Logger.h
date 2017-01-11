@@ -9,13 +9,15 @@
 #define INCLUDE_LOGGER_H_
 
 
-//#define DEBUG1
+//#define DEBUG4
 //#define MEMORY
 
 
 //!---------------------------------------------------------------------------------------------------------
-#ifdef INFO
+#ifdef DEBUG4
 	#define ERROR
+	#define INFO
+	#define DEBUG1
 #endif
 
 #ifdef DEBUG1
@@ -23,10 +25,8 @@
 	#define INFO
 #endif
 
-#ifdef DEBUG4
+#ifdef INFO
 	#define ERROR
-	#define INFO
-	#define DEBUG1
 #endif
 
 
