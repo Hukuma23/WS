@@ -11,7 +11,7 @@
 
 
 #define DEBOUNCE_TTIME 	20
-#define FIRMWARE "20160911"
+#define FIRMWARE "20161004-9600 (MH-Z19)"
 
 //FTPServer ftp;
 
@@ -743,10 +743,11 @@ void publishSwitches() {
 			mqtt->publish(appSettings->topSW, (i+1), OUT, "OFF");	//mqtt.publish(topSw_Out + String(i+1), "OFF");
 	}
 
+	/*
 	for (byte i = 0; i < appSettings->sw_cnt; i++) {
 		DEBUG4_PRINTF("swState%d is ",i);
 		DEBUG4_PRINTLN(actStates->getSw(i));
-	}
+	}*/
 }
 
 void checkWifi(void) {
@@ -1129,7 +1130,7 @@ void init() {
 	//ets_wdt_enable();
 	//ets_wdt_disable();
 	time1 = millis();
-	Serial.begin(115200); // 115200 by default
+	Serial.begin(SERIAL_SPEED); // 115200 by default
 
 	INFO_PRINT("Firmware started + Version: ");
 	appSettings = new AppSettings();
