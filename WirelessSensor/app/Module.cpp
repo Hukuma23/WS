@@ -88,7 +88,7 @@ int SensorMHZ::readCO2() {
 	crc++;
 
 	if ( !(response[0] == 0xFF && response[1] == 0x86 && response[8] == crc) ) {
-		int result = mqtt->publish(appSettings.topLog, OUT, "CRC error=" + String(crc));
+		int result = mqtt->publish(appSettings.topLog, OUT, "CRC error=" + String(crc)  + " r0=" + String(response[0]) + "r1=" + String(response[1]));
 		ERROR_PRINTLN("SensorMHZ19: CRC error: " + String(crc) + " / "+ String(response[8]));
 	} else {
 		crc_error_cnt = 0;
@@ -104,7 +104,7 @@ int SensorMHZ::readCO2() {
 }
 
 void SensorMHZ::compute() {
-	DEBUG4_PRINTLN("_SensorMHZ19");
+	//DEBUG4_PRINTLN("_SensorMHZ19");
 	co2 = SensorMHZ::readCO2();
 
 	// check crc error count, when it more than MAX_CRC_ERRORS ESP will restart
@@ -116,12 +116,13 @@ void SensorMHZ::compute() {
 	// check if returns are valid, if they are NaN (not a number) then something went wrong!
 	if (isnan(co2)) {
 		ERROR_PRINTLN("Error: Failed to read from MH-Z19");
+		int result = mqtt->publish(appSettings.topLog, OUT, "Error: Failed to read from MH-Z19");
 		co2 = undefined;
 		return;
 	} else {
-		DEBUG4_PRINT("CO2: ");
-		DEBUG4_PRINT(co2);
-		DEBUG4_PRINTLN(" ppm");
+		//DEBUG4_PRINT("CO2: ");
+		//DEBUG4_PRINT(co2);
+		//DEBUG4_PRINTLN(" ppm");
 		return;
 	}
 }
@@ -132,7 +133,7 @@ int SensorMHZ::getCO2() {
 
 
 void SensorMHZ::publish() {
-	DEBUG4_PRINTLN("_publishDHT");
+	DEBUG4_PRINTLN("_publishMHZ");
 
 	if (mqtt == NULL) {
 		return;
